@@ -55,11 +55,7 @@ fn main() {
                     _ => "UNKNOWN",
                 };
 
-                if token == grammar::Token::ERR {
-                    return format!("{}^/{}", word, token_name);
-                } else {
-                    format!("{}/{}", word, token_name)
-                }
+                format!("{}/{}", word, token_name)
             })
             .collect();
 
