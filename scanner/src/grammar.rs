@@ -20,6 +20,8 @@ pub enum Token {
         MUL,
             #[regex(r"/")]
         DIV,
+            #[regex(r"//")]
+        INTDIV,
             #[regex(r"\^")]
         POW,
             #[regex(r"\(")]

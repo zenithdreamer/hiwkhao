@@ -43,6 +43,7 @@ fn main() {
                     grammar::Token::SUB => "-",
                     grammar::Token::MUL => "*",
                     grammar::Token::DIV => "/",
+                    grammar::Token::INTDIV => "//",
                     grammar::Token::POW => "POW",
                     grammar::Token::LPAREN => "LPAREN",
                     grammar::Token::RPAREN => "RPAREN",

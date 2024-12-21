@@ -5,6 +5,7 @@ ADD \+
 SUB -
 MUL \*
 DIV /
+INTDIV //
 POW \^
 LPAREN \(
 RPAREN \)
