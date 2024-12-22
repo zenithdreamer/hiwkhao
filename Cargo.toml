@@ -8,3 +8,6 @@ members = [
     "preprocessor",
     "scanner"
 ]
+
+[dependencies]
+scanner = { path = "./scanner" }
