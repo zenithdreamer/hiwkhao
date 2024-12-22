@@ -1,8 +1,6 @@
-## Project Name: hiwkhao
+## hiwkhao
 
-## Overview
-
-This project consists of a lexical analyzer (scanner) that processes an input file and generates tokens based on the provided grammar rules.
+A lexical analyzer (scanner) that processes an input file and generates tokens based on the provided grammar rules.
 
 ## Prerequisites
 
