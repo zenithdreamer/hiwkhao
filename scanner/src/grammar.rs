@@ -32,8 +32,18 @@ pub enum Token {
         LBRACKET,
             #[regex(r"\]")]
         RBRACKET,
-            #[regex(r"==|!=|<=|>=|<|>")]
-        COMP,
+            #[regex(r"==")]
+        EQ,
+            #[regex(r"!=")]
+        NE,
+            #[regex(r"<=")]
+        LE,
+            #[regex(r">=")]
+        GE,
+            #[regex(r"<")]
+        LT,
+            #[regex(r">")]
+        GT,
             #[regex(r"=")]
         ASSIGN,
             #[regex(r"list")]
