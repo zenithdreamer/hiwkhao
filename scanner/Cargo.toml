@@ -3,5 +3,9 @@ name = "scanner"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "scanner_lib"
+path = "src/lib.rs"
+
 [dependencies]
 logos = "0.15.0"

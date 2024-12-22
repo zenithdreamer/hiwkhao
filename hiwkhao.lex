@@ -11,7 +11,12 @@ LPAREN \(
 RPAREN \)
 LBRACKET \[
 RBRACKET \]
-COMP ==|!=|<=|>=|<|>
+EQ ==
+NE !=
+LE <=
+GE >=
+LT <
+GT >
 ASSIGN =
 LIST list
 WHITESPACE \s+
