@@ -17,8 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Generate grammar
-      run: cargo run -p preprocessor
+      run: cargo run -p -r preprocessor
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --all -r
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --all -r
