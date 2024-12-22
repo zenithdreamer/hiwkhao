@@ -20,8 +20,8 @@ jobs:
       run: cargo build --all -r
     - name: Run tests
       run: cargo test --all -r
-    - name: Compile
-      id: compile
+    - name: Compile x86_64-pc-windows-gnu
+      id: x86_64-pc-windows-compile
       uses: rust-build/rust-build.action@v1.4.5
       with:
         RUSTTARGET: x86_64-pc-windows-gnu
@@ -29,7 +29,33 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: Binary
+        name: x86_64-pc-windows-gnu
         path: |
-          ${{ steps.compile.outputs.BUILT_ARCHIVE }}
-          ${{ steps.compile.outputs.BUILT_CHECKSUM }}
+          ${{ steps.x86_64-pc-windows-compile.outputs.BUILT_ARCHIVE }}
+          ${{ steps.x86_64-pc-windows-compile.outputs.BUILT_CHECKSUM }}
+    - name: Compile x86_64-unknown-linux-musl
+      id: x86_64-unknown-linux-musl-compile
+      uses: rust-build/rust-build.action@v1.4.5
+      with:
+        RUSTTARGET: x86_64-unknown-linux-musl
+        UPLOAD_MODE: none
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: x86_64-unknown-linux-musl
+        path: |
+          ${{ steps.x86_64-unknown-linux-musl-compile.outputs.BUILT_ARCHIVE }}
+          ${{ steps.x86_64-unknown-linux-musl-compile.outputs.BUILT_CHECKSUM }}
+    - name: Compile x86_64-apple-darwin
+      id: x86_64-apple-darwin-compile
+      uses: rust-build/rust-build.action@v1.4.5
+      with:
+        RUSTTARGET: x86_64-apple-darwin
+        UPLOAD_MODE: none
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: x86_64-apple-darwin
+        path: |
+          ${{ steps.x86_64-apple-darwin-compile.outputs.BUILT_ARCHIVE }}
+          ${{ steps.x86_64-apple-darwin-compile.outputs.BUILT_CHECKSUM }}
