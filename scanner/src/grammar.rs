@@ -4,7 +4,7 @@
 // cargo run -p preprocessor
         
 use logos::Logos;
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
             #[regex(r"[0-9]+\.[0-9]+(e[-+]?[0-9]+)?")]
         REAL,

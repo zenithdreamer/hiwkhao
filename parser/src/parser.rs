@@ -4,7 +4,7 @@ use scanner_lib::grammar::Token;
 pub fn expr() -> impl Parser<Token, Output = String> {
     let number = just(Token::INT).map(|_| "number".to_string());
 
-    let float = just(Token::FLOAT).map(|_| "float".to_string());
+    let float = just(Token::REAL).map(|_| "float".to_string());
 
     let parens = just(Token::LPAREN)
         .ignore_then(expr())
