@@ -1,8 +1,8 @@
 use logos::Logos;
 
-mod grammar;
+pub mod grammar;
 
-fn tokenize(input: &str) -> Vec<(String, grammar::Token)> {
+pub fn tokenize(input: &str) -> Vec<(String, grammar::Token)> {
     let mut lexer = grammar::Token::lexer(input);
     let mut tokens = Vec::new();
 

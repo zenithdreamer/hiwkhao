@@ -1,7 +1,6 @@
-// parser/src/main.rs
-mod scanner;  // Import the scanner module from the root directory
+use scanner_lib::grammar::Token;
+
 mod parser;
-use crate::scanner::grammar::Token;
 
 fn main() {
     let input = if let Some(file_path) = std::env::args().nth(1) {

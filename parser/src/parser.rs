@@ -1,13 +1,10 @@
-// parser/src/parser.rs
 use chumsky::prelude::*;
-use crate::scanner::grammar::Token;
+use scanner_lib::grammar::Token;
 
 pub fn expr() -> impl Parser<Token, Output = String> {
-    let number = just(Token::INT)
-        .map(|_| "number".to_string());
+    let number = just(Token::INT).map(|_| "number".to_string());
 
-    let float = just(Token::FLOAT)
-        .map(|_| "float".to_string());
+    let float = just(Token::FLOAT).map(|_| "float".to_string());
 
     let parens = just(Token::LPAREN)
         .ignore_then(expr())
@@ -50,8 +47,8 @@ pub fn expr() -> impl Parser<Token, Output = String> {
 }
 
 pub fn parse_input(input: &str) -> Result<String, String> {
-    let tokens = crate::scanner::lib::tokenize(input);
-    
+    let tokens = scanner_lib::tokenize(input);
+
     let result = expr().parse(tokens.into_iter().map(|(_, t)| t));
 
     match result {
