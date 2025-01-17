@@ -3,4 +3,10 @@ name = "parser"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "parser_lib"
+path = "src/lib.rs"
+
 [dependencies]
+logos = "0.15.0"
+chumsky = "0.1"
