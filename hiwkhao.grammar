@@ -1,0 +1,44 @@
+<program> ::= <statement>*
+
+<statement> ::= <assignment>
+              | <expression>
+
+<assignment> ::= <identifier> "=" <value>
+               | <identifier> "=" "list" "[" <expression> "]"
+               | <identifier> "[" <expression> "]" "=" <expression>
+
+<expression> ::= <term>
+               | <expression> "+" <term>
+               | <expression> "-" <term>
+
+<term> ::= <factor>
+         | <term> "*" <factor>
+         | <term> "/" <factor>
+         | <term> "//" <factor>
+
+<factor> ::= <power>
+           | "-" <factor>
+
+<power> ::= <primary>
+          | <primary> "^" <factor>
+
+<primary> ::= <number>
+            | <identifier>
+            | <identifier> "[" <expression> "]"
+            | "(" <expression> ")"
+
+<number> ::= <integer>
+           | <real>
+
+<integer> ::= [0-9]+
+
+<real> ::= [0-9]+ "." [0-9]+ ("e" [+-]? [0-9]+)?
+
+<identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
+
+<comparison> ::= "=="
+               | "!="
+               | "<"
+               | ">"
+               | "<="
+               | ">="
