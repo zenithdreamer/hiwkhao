@@ -1,6 +1,6 @@
 use scanner_lib::grammar::Token;
 
-mod parser;
+mod symbol_table;
 
 fn main() {
     let input = if let Some(file_path) = std::env::args().nth(1) {
@@ -10,9 +10,13 @@ fn main() {
         std::process::exit(1);
     };
 
-    let result = parser::parse_input(&input);
-    match result {
-        Ok(parsed) => println!("Parsed: {}", parsed),
-        Err(err) => eprintln!("Error: {}", err),
+    // let result = parser::parse_input(&input);
+
+    println!("lexeme, line number, startpos, length, value type, value");
+
+    let results = symbol_table::get_symbol_table(&input);
+    
+    for entry in results.output() {
+        println!("{}", entry);
     }
 }

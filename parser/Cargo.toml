@@ -7,3 +7,4 @@ edition = "2021"
 logos = "0.15.0"
 chumsky = "0.8"
 scanner = { path = "../scanner" }
+csv = "1.1"

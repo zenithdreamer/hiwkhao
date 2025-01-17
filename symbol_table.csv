@@ -1,0 +1,4 @@
+Lexeme,Line Number,Start Position,Length,Type,Value
+x,4,1,1,INT,5
+x,6,1,1,VAR,y
+x,10,1,1,LIST,Array
