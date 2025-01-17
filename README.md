@@ -26,3 +26,12 @@ cargo run -p scanner sample.txt
 ```
 
 The output will be displayed in the terminal and also written to `hiwkhao.tok`.
+
+
+## Generating the Symbol table
+
+To run the scanner with the provided input file (`sample.txt`), use the following command:
+
+```sh
+cargo run -p parser sample.txt
+```

@@ -109,25 +109,27 @@ pub fn get_symbol_table(input: &str) -> SymbolTable {
 
                     if i + 1 < tokens.len() {
                         let (right_token_slice, right_token) = &tokens[i + 1];
-                        let mut value = right_token_slice.to_string();
-                        if value.starts_with("list") {
-                            value = "Array".to_string();
+                        if matches!(right_token, Token::INT | Token::REAL | Token::LIST) {
+                            let mut value = right_token_slice.to_string();
+                            if value.starts_with("list") {
+                                value = "Array".to_string();
+                            }
+    
+                            symbol_table.insert(
+                                left_token_slice.to_string(),  
+                                line_number,                  
+                                left_start_pos + 1,            
+                                left_length,                   
+                                right_token.clone(),           
+                                value,                       
+                            );
                         }
-
-                        symbol_table.insert(
-                            left_token_slice.to_string(),  
-                            line_number,                  
-                            left_start_pos + 1,            
-                            left_length,                   
-                            right_token.clone(),           
-                            value,                       
-                        );
                     }
                 }
             }
         }
     }
-    symbol_table.write_to_csv("symbol_table.csv");
+    symbol_table.write_to_csv("hiwkhao.csv");
 
     symbol_table
 }
