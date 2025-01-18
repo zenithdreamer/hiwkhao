@@ -1,6 +1,5 @@
 use scanner_lib;
 
-
 #[test]
 fn invalid_assignment() {
     let input = r"2 = 3";

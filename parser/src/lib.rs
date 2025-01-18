@@ -6,7 +6,8 @@ pub mod symbol_table;
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Number(f64),
+    Int(i64),
+    Float(f64),
     Variable(String),
     BinaryOp(Box<Expr>, String, Box<Expr>),
     Assignment(String, Box<Expr>),
@@ -19,13 +20,8 @@ pub enum Expr {
 impl Expr {
     fn to_string(&self) -> String {
         match self {
-            Expr::Number(n) => {
-                if n.fract() == 0.0 {
-                    n.to_string()
-                } else {
-                    format!("{:.1}", n)
-                }
-            }
+            Expr::Int(n) => n.to_string(),
+            Expr::Float(n) => n.to_string(),
             Expr::Variable(name) => name.clone(),
             Expr::BinaryOp(left, op, right) => {
                 format!("({}{}{})", left.to_string(), op, right.to_string())
@@ -247,10 +243,11 @@ impl Parser {
             self.consume();
             // Parse the next term and wrap it in a UnaryOp
             let term = self.parse_term()?;
+
             Expr::BinaryOp(
                 Box::new(Expr::UnaryOp("-".to_string(), Box::new(term))),
                 "+".to_string(),
-                Box::new(Expr::Number(0.0)),
+                Box::new(Expr::Float(0.0)),
             )
         } else {
             self.parse_term()?
@@ -289,8 +286,12 @@ impl Parser {
                 Token::DIV => {
                     self.consume();
                     let right = self.parse_factor()?;
-                    if let Expr::Number(n) = right {
+                    if let Expr::Float(n) = right {
                         if n == 0.0 {
+                            return Err(ParseError::DivisionByZero(self.get_current_position()));
+                        }
+                    } else if let Expr::Int(n) = right {
+                        if n == 0 {
                             return Err(ParseError::DivisionByZero(self.get_current_position()));
                         }
                     }
@@ -337,6 +338,7 @@ impl Parser {
                             | Token::SUB
                             | Token::MUL
                             | Token::DIV
+                            | Token::INTDIV
                             | Token::POW
                             | Token::EQ
                             | Token::NE
@@ -348,9 +350,30 @@ impl Parser {
                         return Err(ParseError::SyntaxError(self.get_current_position()));
                     }
                 }
-                Ok(Expr::Number(n.parse::<f64>().map_err(|_| {
-                    ParseError::SyntaxError(self.get_current_position())
-                })?))
+
+                let number = n
+                    .parse::<f64>()
+                    .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
+
+                if number.fract() == 0.0 {
+                    if (number as i64) < 0 {
+                        return Ok(Expr::UnaryOp(
+                            "-".to_string(),
+                            Box::new(Expr::Int((number as i64).abs())),
+                        ));
+                    } else {
+                        Ok(Expr::Int(number as i64))
+                    }
+                } else {
+                    if number < 0.0 {
+                        return Ok(Expr::UnaryOp(
+                            "-".to_string(),
+                            Box::new(Expr::Float(number.abs())),
+                        ));
+                    } else {
+                        Ok(Expr::Float(number))
+                    }
+                }
             }
             Some(Token::REAL(n)) => {
                 self.consume();
@@ -361,6 +384,7 @@ impl Parser {
                             | Token::SUB
                             | Token::MUL
                             | Token::DIV
+                            | Token::INTDIV
                             | Token::POW
                             | Token::EQ
                             | Token::NE
@@ -372,9 +396,30 @@ impl Parser {
                         return Err(ParseError::SyntaxError(self.get_current_position()));
                     }
                 }
-                Ok(Expr::Number(n.parse::<f64>().map_err(|_| {
-                    ParseError::SyntaxError(self.get_current_position())
-                })?))
+
+                let number = n
+                    .parse::<f64>()
+                    .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
+
+                if number.fract() == 0.0 {
+                    if (number as i64) < 0 {
+                        return Ok(Expr::UnaryOp(
+                            "-".to_string(),
+                            Box::new(Expr::Int((number as i64).abs())),
+                        ));
+                    } else {
+                        Ok(Expr::Int(number as i64))
+                    }
+                } else {
+                    if number < 0.0 {
+                        return Ok(Expr::UnaryOp(
+                            "-".to_string(),
+                            Box::new(Expr::Float(number.abs())),
+                        ));
+                    } else {
+                        Ok(Expr::Float(number))
+                    }
+                }
             }
             Some(Token::VAR(name)) => {
                 self.consume();
