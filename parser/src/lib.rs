@@ -219,9 +219,6 @@ impl Parser {
     }
 
     fn parse_boolean(&mut self) -> Result<Expr, ParseError> {
-        println!("bool peek {:?}", self.peek());
-
-        // First handle possible negative sign
         let is_negative = if let Some(Token::SUB) = self.peek() {
             self.consume();
             true

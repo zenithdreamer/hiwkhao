@@ -117,7 +117,6 @@ impl SymbolTable {
 
     pub fn get_symbol_table(&mut self, input: logos::Lexer<'_, Token>) -> &mut SymbolTable {
         let tokens: Vec<_> = input.clone().collect();
-        let tokens_clone = tokens.clone();
 
         // Split tokens into lines and track positions
         let mut current_line = 1;
@@ -126,6 +125,7 @@ impl SymbolTable {
         let mut current_line_positions = Vec::new();
         let mut column = 1;
 
+        // First, organize tokens into lines
         for token in &tokens {
             match &token {
                 Ok(Token::NEWLINE) => {
@@ -158,45 +158,34 @@ impl SymbolTable {
             lines.push((current_line_tokens, current_line_positions));
         }
 
-        // Process each line
+        // Process each line's tokens
         for (line_num, (line_tokens, positions)) in lines.iter().enumerate() {
-            self.tokens = line_tokens.clone();
-            self.token_positions = positions.clone();
-            self.pos = 0;
-            self.current_line = current_line;
-            for (i, token_result) in tokens_clone.iter().enumerate() {
-                if let Ok(token) = token_result {
-                    if *token == Token::ASSIGN {
-                        if i > 0 {
-                            if let Ok(left_token) = &tokens[i - 1] {
-                                let left_start_pos = lines
-                                    .iter()
-                                    .position(|(tokens, _)| tokens.contains(left_token))
-                                    .unwrap_or(0);
-                                let left_length = left_token.to_string().len();
+            let line_tokens_vec: Vec<_> = line_tokens.iter().collect();
 
-                                if i + 1 < tokens.len() {
-                                    if let Ok(right_token) = &tokens[i + 1] {
-                                        if matches!(
-                                            right_token,
-                                            Token::INT(_) | Token::REAL(_) | Token::LIST
-                                        ) {
-                                            let mut value = right_token.to_string();
-                                            if value.starts_with("list") {
-                                                value = "Array".to_string();
-                                            }
+            // Process assignments within the current line only
+            for i in 0..line_tokens_vec.len() {
+                if *line_tokens_vec[i] == Token::ASSIGN {
+                    if i > 0 {
+                        let left_token = line_tokens_vec[i - 1];
+                        let left_start_pos = positions[i - 1];
+                        let left_length = left_token.to_string().len();
 
-                                            self.insert(
-                                                left_token.to_string(),
-                                                line_num + 1,
-                                                left_start_pos + 1,
-                                                left_length,
-                                                right_token.clone(),
-                                                value,
-                                            );
-                                        }
-                                    }
+                        if i + 1 < line_tokens_vec.len() {
+                            let right_token = line_tokens_vec[i + 1];
+                            if matches!(right_token, Token::INT(_) | Token::REAL(_) | Token::LIST) {
+                                let mut value = right_token.to_string();
+                                if value.starts_with("list") {
+                                    value = "Array".to_string();
                                 }
+
+                                self.insert(
+                                    left_token.to_string(),
+                                    line_num + 1,
+                                    left_start_pos,
+                                    left_length,
+                                    right_token.clone(),
+                                    value,
+                                );
                             }
                         }
                     }
