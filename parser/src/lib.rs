@@ -219,18 +219,37 @@ impl Parser {
     }
 
     fn parse_boolean(&mut self) -> Result<Expr, ParseError> {
-        let left = if let Some(Token::SUB) = self.peek() {
+        println!("bool peek {:?}", self.peek());
+
+        // First handle possible negative sign
+        let is_negative = if let Some(Token::SUB) = self.peek() {
             self.consume();
-            let expr = self.parse_expression()?;
-            match expr {
+            true
+        } else {
+            false
+        };
+
+        let mut left = self.parse_expression()?;
+
+        if is_negative {
+            left = match left {
                 Expr::Variable(name) => {
                     Expr::UnaryOp("-".to_string(), Box::new(Expr::Variable(name)))
                 }
-                _ => expr,
-            }
-        } else {
-            self.parse_expression()?
-        };
+                Expr::Boolean(l, op, r) => match *l {
+                    Expr::Variable(name) => Expr::Boolean(
+                        Box::new(Expr::UnaryOp(
+                            "-".to_string(),
+                            Box::new(Expr::Variable(name)),
+                        )),
+                        op,
+                        r,
+                    ),
+                    _ => Expr::Boolean(l, op, r),
+                },
+                _ => Expr::UnaryOp("-".to_string(), Box::new(left)),
+            };
+        }
 
         match self.peek() {
             Some(token) => match token {
@@ -282,6 +301,8 @@ impl Parser {
                         _ => unreachable!(),
                     };
                     let right = self.parse_term()?;
+                    println!("result {:?}", result);
+                    println!("right {:?}", right);
                     result = Expr::Boolean(Box::new(result), op.to_string(), Box::new(right));
                 }
                 _ => break,
