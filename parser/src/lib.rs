@@ -204,6 +204,7 @@ impl Parser {
         };
 
         self.expect(Token::ASSIGN)?;
+
         let expr = self.parse_expression()?;
 
         // Validate and store the assignment
@@ -405,6 +406,14 @@ impl Parser {
             self.consume();
             let index_expr = self.parse_expression()?;
             self.expect(Token::RBRACKET)?;
+
+            if !self.variables.contains_key(&name) {
+                return Err(ParseError::UndefinedVariable(
+                    name,
+                    self.get_current_position(),
+                ));
+            }
+
             Ok(Expr::ListAccess(name, Box::new(index_expr)))
         } else {
             Ok(Expr::Variable(name))
@@ -414,27 +423,26 @@ impl Parser {
     fn parse_list(&mut self) -> Result<Expr, ParseError> {
         self.consume(); // Consume 'list' token
         self.expect(Token::LBRACKET)?;
-    
+
         // Check if the next token is RBRACKET (empty brackets)
         if let Some(Token::RBRACKET) = self.peek() {
             return Err(ParseError::MissingIndex(self.get_current_position()));
         }
-    
+
         let size = match self.consume() {
             Some(Token::INT(n)) => n
                 .parse::<usize>()
                 .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?,
             _ => return Err(ParseError::SyntaxError(self.get_current_position())),
         };
-    
+
         if size == 0 {
             return Err(ParseError::SyntaxError(self.get_current_position()));
         }
-    
+
         self.expect(Token::RBRACKET)?;
         Ok(Expr::List(vec![0.0; size]))
     }
-    
 }
 
 // Public interface for parsing tokens
@@ -459,6 +467,9 @@ impl Parser {
 
         for (line_tokens, positions) in lines {
             self.setup_line_parsing(line_tokens, positions, current_line);
+
+            // Print tokens for debugging
+            //println!("Tokens for line {}: {:?}", current_line, self.tokens);
 
             match self.parse() {
                 Ok(expr) => output.push(expr.to_string()),
@@ -544,7 +555,10 @@ impl Parser {
                 format!("Division by zero at line {}, pos {}", pos.line, pos.column)
             }
             ParseError::MissingIndex(pos) => {
-                format!("Missing index expression at line {}, pos {}", pos.line, pos.column)
+                format!(
+                    "Missing index expression at line {}, pos {}",
+                    pos.line, pos.column
+                )
             }
             ParseError::TokenizeError => "TokenizeError".to_string(),
         }
