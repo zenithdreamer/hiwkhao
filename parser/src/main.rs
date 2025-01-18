@@ -29,9 +29,11 @@ fn main() {
     let mut parser = Parser::new(vec![]);
 
     parser.parse_tokens(tokens.clone());
+    let parsed_data = parser.parse_tokens(tokens.clone());
 
-    let mut table = SymbolTable::new(vec![]);
-    table.get_symbol_table(tokens);
+    let mut table = SymbolTable::new();
+    table.process_parsed_expressions(parsed_data);
+
     table
         .write_to_csv(SYMBOL_TABLE_DEFAULT_OUTPUT_FILE)
         .unwrap();

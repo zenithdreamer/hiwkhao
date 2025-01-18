@@ -13,6 +13,7 @@ pub enum Expr {
     BinaryOp(Box<Expr>, String, Box<Expr>),
     Assignment(String, Box<Expr>),
     Boolean(Box<Expr>, String, Box<Expr>),
+    // List can be a list of numbers (real/int)
     List(Vec<f64>),
     ListAccess(String, Box<Expr>),
     UnaryOp(String, Box<Expr>),
@@ -712,12 +713,24 @@ impl Parser {
 }
 
 impl Parser {
-    pub fn parse_tokens(&mut self, input: Lexer<'_, Token>) -> ParseResult {
-        let output = self.parse_tokens_with_output(input);
-        for line in output {
-            println!("{}", line);
+    pub fn parse_tokens(&mut self, input: Lexer<'_, Token>) -> Vec<Result<Expr, ParseError>> {
+        let tokens = input.collect::<Vec<_>>();
+        let lines = self.split_into_lines(tokens);
+        let mut output = Vec::new();
+        let mut current_line = 1;
+
+        for (line_tokens, positions) in lines {
+            self.setup_line_parsing(line_tokens, positions, current_line);
+
+            // Print tokens for debugging
+            //println!("Tokens for line {}: {:?}", current_line, self.tokens);
+
+            output.push(self.parse());
+
+            current_line += 1;
         }
-        ParseResult::Success("Parsing completed".to_string())
+
+        output
     }
 
     pub fn parse_tokens_fancy(&mut self, input: Lexer<'_, Token>) -> Vec<String> {

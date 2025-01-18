@@ -1,10 +1,17 @@
 use csv::Writer;
 use scanner_lib::grammar::Token;
-//use std::collections::HashMap;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 
-use crate::TokenInfo;
+use crate::{Expr, ParseError};
+
+#[derive(Debug, Clone)]
+pub enum VariableType {
+    INT,
+    REAL,
+    LIST(Box<VariableType>),
+}
 
 #[derive(Debug)]
 pub struct SymbolTableEntry {
@@ -19,24 +26,24 @@ pub struct SymbolTableEntry {
 #[derive(Debug)]
 pub struct SymbolTable {
     entries: Vec<SymbolTableEntry>,
-    // tokens: Vec<Token>,
-    // pos: usize,
-    // variables: HashMap<String, Expr>,
-    // current_line: usize,
-    // current_column: usize,
-    // token_positions: Vec<usize>,
+    //tokens: Vec<Token>,
+    //pos: usize,
+    variables: HashMap<String, VariableType>,
+    //current_line: usize,
+    //current_column: usize,
+    //token_positions: Vec<usize>,
 }
 
 impl SymbolTable {
-    pub fn new(_tokens: Vec<Token>) -> Self {
+    pub fn new() -> Self {
         SymbolTable {
             entries: Vec::new(),
-            // tokens,
-            // pos: 0,
-            // variables: HashMap::new(),
-            // current_line: 1,
-            // current_column: 1,
-            // token_positions: Vec::new(),
+            //tokens: Vec::new(),
+            //pos: 0,
+            variables: HashMap::new(),
+            //current_line: 1,
+            //current_column: 1,
+            //token_positions: Vec::new(),
         }
     }
 
@@ -60,8 +67,93 @@ impl SymbolTable {
         self.entries.push(entry);
     }
 
+    pub fn process_parsed_expressions(&mut self, parsed_results: Vec<Result<Expr, ParseError>>) {
+        let mut current_pos = 0;
+
+        for (line_number, result) in parsed_results.iter().enumerate() {
+            if let Ok(expr) = result {
+                match expr {
+                    Expr::Assignment(var_name, value_expr) => {
+                        let (value_type, value, length) = match &**value_expr {
+                            Expr::Int(n) => {
+                                self.variables.insert(var_name.clone(), VariableType::INT);
+                                (
+                                    Token::INT(n.to_string()),
+                                    n.to_string(),
+                                    n.to_string().len(),
+                                )
+                            }
+                            Expr::Float(n) => {
+                                self.variables.insert(var_name.clone(), VariableType::REAL);
+                                (
+                                    Token::REAL(n.to_string()),
+                                    n.to_string(),
+                                    n.to_string().len(),
+                                )
+                            }
+                            Expr::List(elements) => {
+                                // Determine list element type dynamically (e.g., INT or REAL) by inspecting the elements
+                                // Even all element are f64 but if non of them has a decimal point, we can assume it's an INT
+                                let element_type = if elements.iter().all(|e| e.fract() == 0.0) {
+                                    VariableType::INT
+                                } else {
+                                    VariableType::REAL
+                                };
+                                self.variables.insert(
+                                    var_name.clone(),
+                                    VariableType::LIST(Box::new(element_type)),
+                                );
+
+                                (Token::LIST, "Array".to_string(), "Array".len())
+                            }
+
+                            Expr::ListAccess(list_name, index) => {
+                                let list_type = self.variables.get(list_name);
+                                let element_type = match list_type {
+                                    Some(VariableType::LIST(inner_type)) => inner_type.as_ref(),
+                                    _ => &VariableType::INT, // Default to INT if unknown
+                                };
+
+                                let index_value = if let Expr::Int(n) = **index {
+                                    n.to_string()
+                                } else {
+                                    "unknown".to_string()
+                                };
+
+                                let token_type = match element_type {
+                                    VariableType::INT => Token::INT(index_value.clone()),
+                                    VariableType::REAL => Token::REAL(index_value.clone()),
+                                    _ => Token::LIST,
+                                };
+
+                                (
+                                    token_type,
+                                    format!("{}[{}]", list_name, index_value),
+                                    list_name.len() + index_value.len() + 2,
+                                )
+                            }
+                            _ => continue,
+                        };
+
+                        self.insert(
+                            var_name.clone(),
+                            line_number + 1,
+                            current_pos,
+                            length,
+                            value_type,
+                            value,
+                        );
+
+                        current_pos += length + 1;
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
+
     pub fn output(&self) -> Vec<String> {
-        let mut symbol_table_output: Vec<String> = vec![];
+        let mut symbol_table_output = Vec::new();
 
         for entry in &self.entries {
             symbol_table_output.push(format!(
@@ -79,13 +171,9 @@ impl SymbolTable {
     }
 
     pub fn write_to_csv(&self, filename: &str) -> Result<(), Box<dyn Error>> {
-        // Open the file for writing
         let file = File::create(filename)?;
-
-        // Create a CSV writer
         let mut wtr = Writer::from_writer(file);
 
-        // Write the header
         wtr.write_record(&[
             "Lexeme",
             "Line Number",
@@ -95,10 +183,10 @@ impl SymbolTable {
             "Value",
         ])?;
 
-        // Write the data for each entry in the symbol table
         for entry in &self.entries {
             let type_name = format!("{:?}", entry.value_type);
-            let trimmed_type = type_name.split('(').next().unwrap_or(&type_name); // Get only the type name
+            let trimmed_type = type_name.split('(').next().unwrap_or(&type_name);
+
             wtr.write_record(&[
                 &entry.lexeme,
                 &entry.line_number.to_string(),
@@ -109,90 +197,7 @@ impl SymbolTable {
             ])?;
         }
 
-        // Flush and close the writer
         wtr.flush()?;
-
         Ok(())
-    }
-
-    pub fn get_symbol_table(&mut self, input: logos::Lexer<'_, Token>) -> &mut SymbolTable {
-        let tokens: Vec<_> = input.clone().collect();
-
-        // Split tokens into lines and track positions
-        //let mut current_line = 1;
-        let mut lines: Vec<(Vec<Token>, Vec<usize>)> = Vec::new();
-        let mut current_line_tokens = Vec::new();
-        let mut current_line_positions = Vec::new();
-        let mut column = 1;
-
-        // First, organize tokens into lines
-        for token in &tokens {
-            match &token {
-                Ok(Token::NEWLINE) => {
-                    if !current_line_tokens.is_empty() {
-                        lines.push((current_line_tokens, current_line_positions));
-                        current_line_tokens = Vec::new();
-                        current_line_positions = Vec::new();
-                    }
-                    column = 1;
-                }
-                Ok(Token::WHITESPACE) => {
-                    column += 1;
-                }
-                _ => {
-                    if let Ok(tok) = token {
-                        current_line_positions.push(column);
-                        current_line_tokens.push(tok.clone());
-                        column += TokenInfo::token_length(&current_line_tokens.last().unwrap());
-                    } else {
-                        current_line_positions.push(column);
-                        current_line_tokens.push(Token::ERR);
-                        column += TokenInfo::token_length(&current_line_tokens.last().unwrap());
-                    }
-                }
-            }
-        }
-
-        // Add the last line if it doesn't end with a newline
-        if !current_line_tokens.is_empty() {
-            lines.push((current_line_tokens, current_line_positions));
-        }
-
-        // Process each line's tokens
-        for (line_num, (line_tokens, positions)) in lines.iter().enumerate() {
-            let line_tokens_vec: Vec<_> = line_tokens.iter().collect();
-
-            // Process assignments within the current line only
-            for i in 0..line_tokens_vec.len() {
-                if *line_tokens_vec[i] == Token::ASSIGN {
-                    if i > 0 {
-                        let left_token = line_tokens_vec[i - 1];
-                        let left_start_pos = positions[i - 1];
-                        let left_length = left_token.to_string().len();
-
-                        if i + 1 < line_tokens_vec.len() {
-                            let right_token = line_tokens_vec[i + 1];
-                            if matches!(right_token, Token::INT(_) | Token::REAL(_) | Token::LIST) {
-                                let mut value = right_token.to_string();
-                                if value.starts_with("list") {
-                                    value = "Array".to_string();
-                                }
-
-                                self.insert(
-                                    left_token.to_string(),
-                                    line_num + 1,
-                                    left_start_pos,
-                                    left_length,
-                                    right_token.clone(),
-                                    value,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        self
     }
 }
