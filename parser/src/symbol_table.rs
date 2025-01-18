@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 
-use crate::{token_length, Expr};
+use crate::{Expr, TokenInfo};
 
 #[derive(Debug)]
 pub struct SymbolTableEntry {
@@ -143,11 +143,11 @@ impl SymbolTable {
                     if let Ok(tok) = token {
                         current_line_positions.push(column);
                         current_line_tokens.push(tok.clone());
-                        column += token_length(&current_line_tokens.last().unwrap());
+                        column += TokenInfo::token_length(&current_line_tokens.last().unwrap());
                     } else {
                         current_line_positions.push(column);
                         current_line_tokens.push(Token::ERR);
-                        column += token_length(&current_line_tokens.last().unwrap());
+                        column += TokenInfo::token_length(&current_line_tokens.last().unwrap());
                     }
                 }
             }

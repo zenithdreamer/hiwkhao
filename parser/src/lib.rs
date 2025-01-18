@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 pub mod symbol_table;
 
+// Core data structures
 #[derive(Debug, Clone)]
 pub enum Expr {
     Int(i64),
@@ -15,30 +16,6 @@ pub enum Expr {
     List(Vec<f64>),
     ListAccess(String, Box<Expr>),
     UnaryOp(String, Box<Expr>),
-}
-
-impl Expr {
-    fn to_string(&self) -> String {
-        match self {
-            Expr::Int(n) => format!("{}", n),
-            Expr::Float(n) => format!("{:.1}", *n as f64),
-            Expr::Variable(name) => name.clone(),
-            Expr::BinaryOp(left, op, right) => {
-                format!("({}{}{})", left.to_string(), op, right.to_string())
-            }
-            Expr::UnaryOp(op, expr) => {
-                format!("({}{}", op, expr.to_string() + ")")
-            }
-            Expr::Assignment(var, expr) => {
-                format!("({}={})", var, expr.to_string())
-            }
-            Expr::Boolean(left, op, right) => {
-                format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
-            }
-            Expr::List(lst) => format!("(list[({})])", lst.len().to_string()),
-            Expr::ListAccess(var, idx) => format!("({}[({})])", var, idx.to_string()),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +39,58 @@ pub enum ParseError {
     DivisionByZero(Position),
     TokenizeError,
 }
+
+// Improved expression string representation
+impl Expr {
+    fn to_string(&self) -> String {
+        match self {
+            Expr::Int(n) => n.to_string(),
+            Expr::Float(n) => format!("{:.1}", n),
+            Expr::Variable(name) => name.clone(),
+            Expr::BinaryOp(left, op, right) => {
+                format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
+            }
+            Expr::UnaryOp(op, expr) => format!("({}{}", op, expr.to_string() + ")"),
+            Expr::Assignment(var, expr) => format!("({}={})", var, expr.to_string()),
+            Expr::Boolean(left, op, right) => {
+                format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
+            }
+            Expr::List(lst) => format!("(list[{}])", lst.len()),
+            Expr::ListAccess(var, idx) => format!("({}[{}])", var, idx.to_string()),
+        }
+    }
+}
+
+// Token utilities
+pub struct TokenInfo;
+
+impl TokenInfo {
+    pub fn token_length(token: &Token) -> usize {
+        match token {
+            Token::VAR(name) => name.len(),
+            Token::INT(n) | Token::REAL(n) => n.len(),
+            Token::EQ | Token::NE | Token::LE | Token::GE | Token::INTDIV => 2,
+            Token::LIST => 4,
+            Token::ADD
+            | Token::SUB
+            | Token::MUL
+            | Token::DIV
+            | Token::POW
+            | Token::LPAREN
+            | Token::RPAREN
+            | Token::LBRACKET
+            | Token::RBRACKET
+            | Token::ASSIGN
+            | Token::GT
+            | Token::LT
+            | Token::NEWLINE
+            | Token::WHITESPACE
+            | Token::ERR => 1,
+        }
+    }
+}
+
+// Parser implementation
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
@@ -71,33 +100,9 @@ pub struct Parser {
     token_positions: Vec<usize>,
 }
 
-pub fn token_length(token: &Token) -> usize {
-    match token {
-        Token::VAR(name) => name.len(),
-        Token::INT(n) => n.len(),
-        Token::REAL(n) => n.len(),
-        Token::ADD | Token::SUB | Token::MUL | Token::DIV => 1,
-        Token::POW => 1,
-        Token::LPAREN | Token::RPAREN => 1,
-        Token::LBRACKET | Token::RBRACKET => 1,
-        Token::ASSIGN => 1,
-        Token::EQ => 2,     // ==
-        Token::NE => 2,     // !=
-        Token::GT => 1,     // >
-        Token::LE => 2,     // <=
-        Token::GE => 2,     // >=
-        Token::LT => 1,     // <
-        Token::LIST => 4,   // "list"
-        Token::INTDIV => 2, // //
-        Token::NEWLINE => 1,
-        Token::WHITESPACE => 1,
-        Token::ERR => 1,
-    }
-}
-
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Parser {
+        Self {
             tokens,
             pos: 0,
             variables: HashMap::new(),
@@ -107,6 +112,7 @@ impl Parser {
         }
     }
 
+    // Token navigation methods
     fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.pos)
     }
@@ -115,15 +121,10 @@ impl Parser {
         if self.pos < self.tokens.len() {
             let token = self.tokens[self.pos].clone();
             self.pos += 1;
+            self.current_column += TokenInfo::token_length(&token);
 
-            // Update column based on token length
-            self.current_column += token_length(&token);
-
-            // Add space after token if there is one and it's not the last token
             if self.pos < self.tokens.len() {
-                // Check if there's whitespace between current token and next token
-                // This would need to be provided by your scanner/tokenizer
-                self.current_column += 1; // Assuming single space between tokens
+                self.current_column += 1;
             }
 
             Some(token)
@@ -138,14 +139,7 @@ impl Parser {
                 self.consume();
                 Ok(())
             }
-            Some(_) => Err(ParseError::SyntaxError(Position {
-                line: self.current_line,
-                column: self.current_column,
-            })),
-            _ => Err(ParseError::SyntaxError(Position {
-                line: self.current_line,
-                column: self.current_column,
-            })),
+            _ => Err(ParseError::SyntaxError(self.get_current_position())),
         }
     }
 
@@ -162,88 +156,82 @@ impl Parser {
         }
     }
 
+    // Parsing methods
     pub fn parse(&mut self) -> Result<Expr, ParseError> {
         self.parse_calculation()
     }
 
     fn parse_calculation(&mut self) -> Result<Expr, ParseError> {
         match self.peek() {
-            Some(Token::VAR(_)) => {
-                let next = self.tokens.get(self.pos + 1);
-                if next == Some(&Token::ASSIGN) {
-                    self.parse_assignment()
-                } else {
-                    self.parse_boolean()
-                }
+            Some(Token::VAR(_)) if self.tokens.get(self.pos + 1) == Some(&Token::ASSIGN) => {
+                self.parse_assignment()
             }
             _ => self.parse_boolean(),
         }
     }
 
     fn parse_assignment(&mut self) -> Result<Expr, ParseError> {
-        if let Some(Token::VAR(name)) = self.consume() {
-            self.expect(Token::ASSIGN)?;
-            let expr = self.parse_expression()?;
+        let name = match self.consume() {
+            Some(Token::VAR(name)) => name,
+            _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+        };
 
-            match &expr {
-                Expr::List(lst) => {
-                    if lst.is_empty() {
-                        return Err(ParseError::SyntaxError(self.get_current_position()));
-                    }
-                    self.variables.insert(name.clone(), expr.clone());
-                }
-                _ => {
-                    self.variables.insert(name.clone(), expr.clone());
-                }
+        self.expect(Token::ASSIGN)?;
+        let expr = self.parse_expression()?;
+
+        // Validate and store the assignment
+        match &expr {
+            Expr::List(lst) if lst.is_empty() => {
+                return Err(ParseError::SyntaxError(self.get_current_position()))
             }
+            _ => self.variables.insert(name.clone(), expr.clone()),
+        };
 
-            Ok(Expr::Assignment(name, Box::new(expr)))
-        } else {
-            Err(ParseError::SyntaxError(self.get_current_position()))
-        }
+        Ok(Expr::Assignment(name, Box::new(expr)))
     }
 
     fn parse_boolean(&mut self) -> Result<Expr, ParseError> {
         let left = self.parse_expression()?;
 
         match self.peek() {
-            Some(Token::EQ) => {
-                self.consume();
-                let right = self.parse_expression()?;
-                Ok(Expr::Boolean(
-                    Box::new(left),
-                    "==".to_string(),
-                    Box::new(right),
-                ))
-            }
-            Some(Token::NE) => {
-                self.consume();
-                let right = self.parse_expression()?;
-                Ok(Expr::Boolean(
-                    Box::new(left),
-                    "!=".to_string(),
-                    Box::new(right),
-                ))
-            }
-            Some(Token::GT) => {
-                self.consume();
-                let right = self.parse_expression()?;
-                Ok(Expr::Boolean(
-                    Box::new(left),
-                    ">".to_string(),
-                    Box::new(right),
-                ))
-            }
-            _ => Ok(left),
+            Some(token) => match token {
+                Token::EQ => {
+                    self.consume();
+                    let right = self.parse_expression()?;
+                    Ok(Expr::Boolean(
+                        Box::new(left),
+                        "==".to_string(),
+                        Box::new(right),
+                    ))
+                }
+                Token::NE => {
+                    self.consume();
+                    let right = self.parse_expression()?;
+                    Ok(Expr::Boolean(
+                        Box::new(left),
+                        "!=".to_string(),
+                        Box::new(right),
+                    ))
+                }
+                Token::GT => {
+                    self.consume();
+                    let right = self.parse_expression()?;
+                    Ok(Expr::Boolean(
+                        Box::new(left),
+                        ">".to_string(),
+                        Box::new(right),
+                    ))
+                }
+                _ => Ok(left),
+            },
+            None => Ok(left),
         }
     }
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        let expr = if let Some(Token::SUB) = self.peek() {
+        let mut result = if let Some(Token::SUB) = self.peek() {
             self.consume();
-            // Parse the next term and wrap it in a UnaryOp
             let term = self.parse_term()?;
-
             Expr::BinaryOp(
                 Box::new(Expr::UnaryOp("-".to_string(), Box::new(term))),
                 "+".to_string(),
@@ -253,19 +241,16 @@ impl Parser {
             self.parse_term()?
         };
 
-        let mut result = expr;
-
         while let Some(token) = self.peek() {
             match token {
-                Token::ADD => {
-                    self.consume();
+                Token::ADD | Token::SUB => {
+                    let op = if matches!(self.consume().unwrap(), Token::ADD) {
+                        "+"
+                    } else {
+                        "-"
+                    };
                     let right = self.parse_term()?;
-                    result = Expr::BinaryOp(Box::new(result), "+".to_string(), Box::new(right));
-                }
-                Token::SUB => {
-                    self.consume();
-                    let right = self.parse_term()?;
-                    result = Expr::BinaryOp(Box::new(result), "-".to_string(), Box::new(right));
+                    result = Expr::BinaryOp(Box::new(result), op.to_string(), Box::new(right));
                 }
                 _ => break,
             }
@@ -275,26 +260,31 @@ impl Parser {
 
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_factor()?;
+
         while let Some(token) = self.peek() {
             match token {
-                Token::MUL => {
-                    self.consume();
+                Token::MUL | Token::DIV => {
+                    let is_mul = matches!(self.consume().unwrap(), Token::MUL);
                     let right = self.parse_factor()?;
-                    left = Expr::BinaryOp(Box::new(left), "*".to_string(), Box::new(right));
-                }
-                Token::DIV => {
-                    self.consume();
-                    let right = self.parse_factor()?;
-                    if let Expr::Float(n) = right {
-                        if n == 0.0 {
-                            return Err(ParseError::DivisionByZero(self.get_current_position()));
-                        }
-                    } else if let Expr::Int(n) = right {
-                        if n == 0 {
-                            return Err(ParseError::DivisionByZero(self.get_current_position()));
+
+                    if !is_mul {
+                        // Check for division by zero
+                        match &right {
+                            Expr::Float(n) if *n == 0.0 => {
+                                return Err(ParseError::DivisionByZero(self.get_current_position()))
+                            }
+                            Expr::Int(n) if *n == 0 => {
+                                return Err(ParseError::DivisionByZero(self.get_current_position()))
+                            }
+                            _ => {}
                         }
                     }
-                    left = Expr::BinaryOp(Box::new(left), "/".to_string(), Box::new(right));
+
+                    left = Expr::BinaryOp(
+                        Box::new(left),
+                        if is_mul { "*" } else { "/" }.to_string(),
+                        Box::new(right),
+                    );
                 }
                 _ => break,
             }
@@ -303,14 +293,6 @@ impl Parser {
     }
 
     fn parse_factor(&mut self) -> Result<Expr, ParseError> {
-        // let mut expr = if let Some(Token::SUB) = self.peek() {
-        //     self.consume();
-        //     let atom = self.parse_atom()?;
-        //     Expr::UnaryOp("-".to_string(), Box::new(atom))
-        // } else {
-        //     self.parse_atom()?
-        // };
-
         let mut expr = self.parse_atom()?;
 
         while let Some(Token::POW) = self.peek() {
@@ -323,236 +305,147 @@ impl Parser {
     }
 
     fn parse_atom(&mut self) -> Result<Expr, ParseError> {
-        let peeked = self.peek();
-        match peeked.cloned() {
+        match self.peek().cloned() {
             Some(Token::LPAREN) => {
                 self.consume();
                 let expr = self.parse_expression()?;
                 self.expect(Token::RPAREN)?;
                 Ok(expr)
             }
-            Some(Token::INT(n)) => {
-                self.consume();
-                if let Some(token) = self.peek() {
-                    if !matches!(
-                        token,
-                        Token::ADD
-                            | Token::SUB
-                            | Token::MUL
-                            | Token::DIV
-                            | Token::INTDIV
-                            | Token::POW
-                            | Token::EQ
-                            | Token::NE
-                            | Token::GT
-                            | Token::LPAREN
-                            | Token::RPAREN
-                            | Token::RBRACKET
-                    ) {
-                        return Err(ParseError::SyntaxError(self.get_current_position()));
-                    }
-                }
-
-                let number = n
-                    .parse::<f64>()
-                    .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
-
-                if (number as i64) < 0 {
-                    return Ok(Expr::UnaryOp(
-                        "-".to_string(),
-                        Box::new(Expr::Int((number as i64).abs())),
-                    ));
-                } else {
-                    Ok(Expr::Int(number as i64))
-                }
-            }
-            Some(Token::REAL(n)) => {
-                self.consume();
-                if let Some(token) = self.peek() {
-                    if !matches!(
-                        token,
-                        Token::ADD
-                            | Token::SUB
-                            | Token::MUL
-                            | Token::DIV
-                            | Token::INTDIV
-                            | Token::POW
-                            | Token::EQ
-                            | Token::NE
-                            | Token::GT
-                            | Token::LPAREN
-                            | Token::RPAREN
-                            | Token::RBRACKET
-                    ) {
-                        return Err(ParseError::SyntaxError(self.get_current_position()));
-                    }
-                }
-
-                let number = n
-                    .parse::<f64>()
-                    .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
-
-                if (number as f64) < 0.0 {
-                    return Ok(Expr::UnaryOp(
-                        "-".to_string(),
-                        Box::new(Expr::Float(number.abs())),
-                    ));
-                } else {
-                    Ok(Expr::Float(number))
-                }
-            }
-            Some(Token::VAR(name)) => {
-                self.consume();
-
-                // Check if this is a list access
-                if let Some(Token::LBRACKET) = self.peek() {
-                    self.consume();
-                    let index_expr = self.parse_expression()?;
-                    self.expect(Token::RBRACKET)?;
-
-                    if !self.variables.contains_key(&name) {
-                        return Err(ParseError::UndefinedVariable(
-                            name,
-                            self.get_current_position(),
-                        ));
-                    }
-
-                    Ok(Expr::ListAccess(name, Box::new(index_expr)))
-                } else {
-                    if !self.variables.contains_key(&name) {
-                        return Err(ParseError::UndefinedVariable(
-                            name,
-                            self.get_current_position(),
-                        ));
-                    }
-                    Ok(Expr::Variable(name))
-                }
-            }
-            Some(Token::LIST) => {
-                self.consume();
-                self.expect(Token::LBRACKET)?;
-                let size = if let Some(Token::INT(n)) = self.consume() {
-                    n.parse::<usize>()
-                        .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?
-                } else {
-                    return Err(ParseError::SyntaxError(self.get_current_position()));
-                };
-
-                self.expect(Token::RBRACKET)?;
-
-                if size == 0 {
-                    return Err(ParseError::SyntaxError(self.get_current_position()));
-                }
-
-                Ok(Expr::List(vec![0.0; size]))
-            }
+            Some(Token::INT(n)) => self.parse_number(n, true),
+            Some(Token::REAL(n)) => self.parse_number(n, false),
+            Some(Token::VAR(name)) => self.parse_variable(name),
+            Some(Token::LIST) => self.parse_list(),
             Some(Token::ERR) => Err(ParseError::SyntaxError(self.get_current_position())),
-
             _ => Err(ParseError::InvalidAtom(self.get_current_position())),
         }
     }
 
+    fn parse_number(&mut self, n: String, is_int: bool) -> Result<Expr, ParseError> {
+        self.consume();
+
+        if let Some(token) = self.peek() {
+            if !matches!(
+                token,
+                Token::ADD
+                    | Token::SUB
+                    | Token::MUL
+                    | Token::DIV
+                    | Token::INTDIV
+                    | Token::POW
+                    | Token::EQ
+                    | Token::NE
+                    | Token::GT
+                    | Token::LPAREN
+                    | Token::RPAREN
+                    | Token::RBRACKET
+            ) {
+                return Err(ParseError::SyntaxError(self.get_current_position()));
+            }
+        }
+
+        let number = n
+            .parse::<f64>()
+            .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
+
+        if number < 0.0 {
+            Ok(Expr::UnaryOp(
+                "-".to_string(),
+                Box::new(if is_int {
+                    Expr::Int(number.abs() as i64)
+                } else {
+                    Expr::Float(number.abs())
+                }),
+            ))
+        } else if is_int {
+            Ok(Expr::Int(number as i64))
+        } else {
+            Ok(Expr::Float(number))
+        }
+    }
+
+    fn parse_variable(&mut self, name: String) -> Result<Expr, ParseError> {
+        self.consume();
+
+        if !self.variables.contains_key(&name) {
+            return Err(ParseError::UndefinedVariable(
+                name,
+                self.get_current_position(),
+            ));
+        }
+
+        if let Some(Token::LBRACKET) = self.peek() {
+            self.consume();
+            let index_expr = self.parse_expression()?;
+            self.expect(Token::RBRACKET)?;
+            Ok(Expr::ListAccess(name, Box::new(index_expr)))
+        } else {
+            Ok(Expr::Variable(name))
+        }
+    }
+
+    fn parse_list(&mut self) -> Result<Expr, ParseError> {
+        self.consume();
+        self.expect(Token::LBRACKET)?;
+
+        let size = match self.consume() {
+            Some(Token::INT(n)) => n
+                .parse::<usize>()
+                .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?,
+            _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+        };
+
+        if size == 0 {
+            return Err(ParseError::SyntaxError(self.get_current_position()));
+        }
+
+        self.expect(Token::RBRACKET)?;
+        Ok(Expr::List(vec![0.0; size]))
+    }
+}
+
+// Public interface for parsing tokens
+impl Parser {
     pub fn parse_tokens(&mut self, input: Lexer<'_, Token>) -> ParseResult {
-        let tokens = input.collect::<Vec<_>>();
-
-        // Split tokens into lines and track positions
-        let mut current_line = 1;
-        let mut lines: Vec<(Vec<Token>, Vec<usize>)> = Vec::new();
-        let mut current_line_tokens = Vec::new();
-        let mut current_line_positions = Vec::new();
-        let mut column = 1;
-
-        for token in tokens {
-            match &token {
-                Ok(Token::NEWLINE) => {
-                    if !current_line_tokens.is_empty() {
-                        lines.push((current_line_tokens, current_line_positions));
-                        current_line_tokens = Vec::new();
-                        current_line_positions = Vec::new();
-                    }
-                    column = 1;
-                }
-                Ok(Token::WHITESPACE) => {
-                    column += 1;
-                }
-                _ => {
-                    if let Ok(tok) = token {
-                        current_line_positions.push(column);
-                        current_line_tokens.push(tok);
-                        column += token_length(&current_line_tokens.last().unwrap());
-                    } else {
-                        current_line_positions.push(column);
-                        current_line_tokens.push(Token::ERR);
-                        column += token_length(&current_line_tokens.last().unwrap());
-                    }
-                }
-            }
+        let output = self.parse_tokens_with_output(input);
+        for line in output {
+            println!("{}", line);
         }
-
-        // Add the last line if it doesn't end with a newline
-        if !current_line_tokens.is_empty() {
-            lines.push((current_line_tokens, current_line_positions));
-        }
-
-        // Process each line
-        for (_line_num, (line_tokens, positions)) in lines.iter().enumerate() {
-            self.tokens = line_tokens.clone();
-            self.token_positions = positions.clone();
-            self.pos = 0;
-            self.current_line = current_line;
-            self.current_column = 1;
-
-            match self.parse() {
-                Ok(expr) => {
-                    println!("{}", expr.to_string());
-                    current_line += 1;
-                }
-                Err(err) => {
-                    match err {
-                        ParseError::UndefinedVariable(var, pos) => {
-                            println!(
-                                "Undefined variable {} at line {}, pos {}",
-                                var, pos.line, pos.column
-                            );
-                        }
-                        ParseError::SyntaxError(pos) => {
-                            println!("SyntaxError at line {}, pos {}", pos.line, pos.column);
-                        }
-                        ParseError::InvalidAtom(pos) => {
-                            println!("Invalid atom at line {}, pos {}", pos.line, pos.column);
-                        }
-                        ParseError::IndexOutOfRange(pos) => {
-                            println!("IndexOutOfRange at line {}, pos {}", pos.line, pos.column);
-                        }
-                        ParseError::DivisionByZero(pos) => {
-                            println!("Division by zero at line {}, pos {}", pos.line, pos.column);
-                        }
-                        ParseError::TokenizeError => {
-                            println!("TokenizeError");
-                        }
-                    }
-                    current_line += 1;
-                }
-            }
-        }
-
         ParseResult::Success("Parsing completed".to_string())
     }
 
     pub fn parse_tokens_fancy(&mut self, input: Lexer<'_, Token>) -> Vec<String> {
-        let tokens = input.collect::<Vec<_>>();
+        self.parse_tokens_with_output(input)
+    }
 
-        // Split tokens into lines and track positions
+    fn parse_tokens_with_output(&mut self, input: Lexer<'_, Token>) -> Vec<String> {
+        let tokens = input.collect::<Vec<_>>();
+        let lines = self.split_into_lines(tokens);
+        let mut output = Vec::new();
         let mut current_line = 1;
-        let mut lines: Vec<(Vec<Token>, Vec<usize>)> = Vec::new();
+
+        for (line_tokens, positions) in lines {
+            self.setup_line_parsing(line_tokens, positions, current_line);
+
+            match self.parse() {
+                Ok(expr) => output.push(expr.to_string()),
+                Err(err) => output.push(self.format_error(err)),
+            }
+
+            current_line += 1;
+        }
+
+        output
+    }
+
+    fn split_into_lines(&self, tokens: Vec<Result<Token, ()>>) -> Vec<(Vec<Token>, Vec<usize>)> {
+        let mut lines = Vec::new();
         let mut current_line_tokens = Vec::new();
         let mut current_line_positions = Vec::new();
         let mut column = 1;
 
-        let mut output = Vec::new();
-
         for token in tokens {
-            match &token {
+            match token {
                 Ok(Token::NEWLINE) => {
                     if !current_line_tokens.is_empty() {
                         lines.push((current_line_tokens, current_line_positions));
@@ -564,79 +457,60 @@ impl Parser {
                 Ok(Token::WHITESPACE) => {
                     column += 1;
                 }
-                _ => {
-                    if let Ok(tok) = token {
-                        current_line_positions.push(column);
-                        current_line_tokens.push(tok);
-                        column += token_length(&current_line_tokens.last().unwrap());
-                    } else {
-                        current_line_positions.push(column);
-                        current_line_tokens.push(Token::ERR);
-                        column += token_length(&current_line_tokens.last().unwrap());
-                    }
+                Ok(tok) => {
+                    current_line_positions.push(column);
+                    current_line_tokens.push(tok);
+                    column += TokenInfo::token_length(&current_line_tokens.last().unwrap());
+                }
+                Err(_) => {
+                    current_line_positions.push(column);
+                    current_line_tokens.push(Token::ERR);
+                    column += TokenInfo::token_length(&Token::ERR);
                 }
             }
         }
 
-        // Add the last line if it doesn't end with a newline
         if !current_line_tokens.is_empty() {
             lines.push((current_line_tokens, current_line_positions));
         }
 
-        // Process each line
-        for (_line_num, (line_tokens, positions)) in lines.iter().enumerate() {
-            self.tokens = line_tokens.clone();
-            self.token_positions = positions.clone();
-            self.pos = 0;
-            self.current_line = current_line;
-            self.current_column = 1;
+        lines
+    }
 
-            match self.parse() {
-                Ok(expr) => {
-                    output.push(expr.to_string());
-                    current_line += 1;
-                }
-                Err(err) => {
-                    match err {
-                        ParseError::UndefinedVariable(var, pos) => {
-                            output.push(format!(
-                                "Undefined variable {} at line {}, pos {}",
-                                var, pos.line, pos.column
-                            ));
-                        }
-                        ParseError::SyntaxError(pos) => {
-                            output.push(format!(
-                                "SyntaxError at line {}, pos {}",
-                                pos.line, pos.column
-                            ));
-                        }
-                        ParseError::InvalidAtom(pos) => {
-                            output.push(format!(
-                                "Invalid atom at line {}, pos {}",
-                                pos.line, pos.column
-                            ));
-                        }
-                        ParseError::IndexOutOfRange(pos) => {
-                            output.push(format!(
-                                "IndexOutOfRange at line {}, pos {}",
-                                pos.line, pos.column
-                            ));
-                        }
-                        ParseError::DivisionByZero(pos) => {
-                            output.push(format!(
-                                "Division by zero at line {}, pos {}",
-                                pos.line, pos.column
-                            ));
-                        }
-                        ParseError::TokenizeError => {
-                            output.push("TokenizeError".to_string());
-                        }
-                    }
-                    current_line += 1;
-                }
+    fn setup_line_parsing(
+        &mut self,
+        line_tokens: Vec<Token>,
+        positions: Vec<usize>,
+        line_number: usize,
+    ) {
+        self.tokens = line_tokens;
+        self.token_positions = positions;
+        self.pos = 0;
+        self.current_line = line_number;
+        self.current_column = 1;
+    }
+
+    fn format_error(&self, err: ParseError) -> String {
+        match err {
+            ParseError::UndefinedVariable(var, pos) => {
+                format!(
+                    "Undefined variable {} at line {}, pos {}",
+                    var, pos.line, pos.column
+                )
             }
+            ParseError::SyntaxError(pos) => {
+                format!("SyntaxError at line {}, pos {}", pos.line, pos.column)
+            }
+            ParseError::InvalidAtom(pos) => {
+                format!("Invalid atom at line {}, pos {}", pos.line, pos.column)
+            }
+            ParseError::IndexOutOfRange(pos) => {
+                format!("IndexOutOfRange at line {}, pos {}", pos.line, pos.column)
+            }
+            ParseError::DivisionByZero(pos) => {
+                format!("Division by zero at line {}, pos {}", pos.line, pos.column)
+            }
+            ParseError::TokenizeError => "TokenizeError".to_string(),
         }
-
-        output
     }
 }
