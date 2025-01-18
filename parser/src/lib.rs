@@ -1,6 +1,6 @@
 use logos::Lexer;
 use scanner_lib::grammar::Token;
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 pub mod symbol_table;
 
@@ -135,7 +135,7 @@ impl Parser {
                 line: self.current_line,
                 column: self.current_column,
             })),
-            None => Err(ParseError::SyntaxError(Position {
+            _ => Err(ParseError::SyntaxError(Position {
                 line: self.current_line,
                 column: self.current_column,
             })),
@@ -254,7 +254,7 @@ impl Parser {
 
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_factor()?;
-    
+
         while let Some(token) = self.peek() {
             match token {
                 Token::MUL => {
@@ -287,7 +287,6 @@ impl Parser {
         }
         Ok(left)
     }
-    
 
     fn parse_factor(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_atom()?;
@@ -450,7 +449,7 @@ impl Parser {
         }
 
         // Process each line
-        for (line_num, (line_tokens, positions)) in lines.iter().enumerate() {
+        for (_line_num, (line_tokens, positions)) in lines.iter().enumerate() {
             self.tokens = line_tokens.clone();
             self.token_positions = positions.clone();
             self.pos = 0;
@@ -480,7 +479,7 @@ impl Parser {
                             println!("IndexOutOfRange at line {}, pos {}", pos.line, pos.column);
                         }
                         ParseError::DivisionByZero(pos) => {
-                            println!("Division bye zero at line {}, pos {}", pos.line, pos.column);
+                            println!("Division by zero at line {}, pos {}", pos.line, pos.column);
                         }
                         ParseError::TokenizeError => {
                             println!("TokenizeError");
@@ -492,5 +491,106 @@ impl Parser {
         }
 
         ParseResult::Success("Parsing completed".to_string())
+    }
+
+    pub fn parse_tokens_fancy(&mut self, input: Lexer<'_, Token>) -> Vec<String> {
+        let tokens = input.collect::<Vec<_>>();
+
+        // Split tokens into lines and track positions
+        let mut current_line = 1;
+        let mut lines: Vec<(Vec<Token>, Vec<usize>)> = Vec::new();
+        let mut current_line_tokens = Vec::new();
+        let mut current_line_positions = Vec::new();
+        let mut column = 1;
+
+        let mut output = Vec::new();
+
+        for token in tokens {
+            match &token {
+                Ok(Token::NEWLINE) => {
+                    if !current_line_tokens.is_empty() {
+                        lines.push((current_line_tokens, current_line_positions));
+                        current_line_tokens = Vec::new();
+                        current_line_positions = Vec::new();
+                    }
+                    column = 1;
+                }
+                Ok(Token::WHITESPACE) => {
+                    column += 1;
+                }
+                _ => {
+                    if let Ok(tok) = token {
+                        current_line_positions.push(column);
+                        current_line_tokens.push(tok);
+                        column += token_length(&current_line_tokens.last().unwrap());
+                    } else {
+                        current_line_positions.push(column);
+                        current_line_tokens.push(Token::ERR);
+                        column += token_length(&current_line_tokens.last().unwrap());
+                    }
+                }
+            }
+        }
+
+        // Add the last line if it doesn't end with a newline
+        if !current_line_tokens.is_empty() {
+            lines.push((current_line_tokens, current_line_positions));
+        }
+
+        // Process each line
+        for (_line_num, (line_tokens, positions)) in lines.iter().enumerate() {
+            self.tokens = line_tokens.clone();
+            self.token_positions = positions.clone();
+            self.pos = 0;
+            self.current_line = current_line;
+            self.current_column = 1;
+
+            match self.parse() {
+                Ok(expr) => {
+                    output.push(expr.to_string());
+                    current_line += 1;
+                }
+                Err(err) => {
+                    match err {
+                        ParseError::UndefinedVariable(var, pos) => {
+                            output.push(format!(
+                                "Undefined variable {} at line {}, pos {}",
+                                var, pos.line, pos.column
+                            ));
+                        }
+                        ParseError::SyntaxError(pos) => {
+                            output.push(format!(
+                                "SyntaxError at line {}, pos {}",
+                                pos.line, pos.column
+                            ));
+                        }
+                        ParseError::InvalidAtom(pos) => {
+                            output.push(format!(
+                                "Invalid atom at line {}, pos {}",
+                                pos.line, pos.column
+                            ));
+                        }
+                        ParseError::IndexOutOfRange(pos) => {
+                            output.push(format!(
+                                "IndexOutOfRange at line {}, pos {}",
+                                pos.line, pos.column
+                            ));
+                        }
+                        ParseError::DivisionByZero(pos) => {
+                            output.push(format!(
+                                "Division by zero at line {}, pos {}",
+                                pos.line, pos.column
+                            ));
+                        }
+                        ParseError::TokenizeError => {
+                            output.push("TokenizeError".to_string());
+                        }
+                    }
+                    current_line += 1;
+                }
+            }
+        }
+
+        output
     }
 }

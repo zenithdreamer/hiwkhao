@@ -1,5 +1,4 @@
 use csv::Writer;
-use logos::Logos;
 use scanner_lib::grammar::Token;
 use std::collections::HashMap;
 use std::error::Error;
