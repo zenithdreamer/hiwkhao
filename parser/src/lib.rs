@@ -416,6 +416,13 @@ impl Parser {
 
             Ok(Expr::ListAccess(name, Box::new(index_expr)))
         } else {
+            if !self.variables.contains_key(&name) {
+                return Err(ParseError::UndefinedVariable(
+                    name,
+                    self.get_current_position(),
+                ));
+            }
+
             Ok(Expr::Variable(name))
         }
     }
