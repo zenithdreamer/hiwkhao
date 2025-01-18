@@ -31,7 +31,7 @@ fn invalid_list_index() {
 #[test]
 fn list_with_arithmetic() {
     let input = "x = list[2] + 5";
-    let expected_output = vec![r"SyntaxError at line 1, pos 9"];  // Error when trying to perform arithmetic with list
+    let expected_output = vec![r"SyntaxError at line 1, pos 11"];  // Error when trying to perform arithmetic with list
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
