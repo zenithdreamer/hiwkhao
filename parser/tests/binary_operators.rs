@@ -73,7 +73,7 @@ fn positive_exponent_float() {
 #[test]
 fn negative_addition() {
     let input = "-23 + 8";
-    let expected_output = vec![r"(-23+8)"];
+    let expected_output = vec![r"((-23)+8)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -83,7 +83,7 @@ fn negative_addition() {
 #[test]
 fn negative_subtraction() {
     let input = "-23 - 8";
-    let expected_output = vec![r"(-23-8)"];
+    let expected_output = vec![r"((-23)-8)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -93,7 +93,7 @@ fn negative_subtraction() {
 #[test]
 fn negative_multiplication() {
     let input = "-23 * 8";
-    let expected_output = vec![r"(-23*8)"];
+    let expected_output = vec![r"((-23)*8)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -103,7 +103,7 @@ fn negative_multiplication() {
 #[test]
 fn negative_division() {
     let input = "-23.0 / 8.0";
-    let expected_output = vec![r"(-23.0/8.0)"];
+    let expected_output = vec![r"((-23.0)/8.0)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -113,7 +113,7 @@ fn negative_division() {
 #[test]
 fn negative_division_integers() {
     let input = "-23 / 8";
-    let expected_output = vec![r"(-23/8)"];
+    let expected_output = vec![r"((-23)/8)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -133,7 +133,7 @@ fn zero_division() {
 #[test]
 fn negative_exponent() {
     let input = "-23 ^ 8";
-    let expected_output = vec![r"(-23^8)"];
+    let expected_output = vec![r"((-23)^8)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -143,7 +143,7 @@ fn negative_exponent() {
 #[test]
 fn negative_exponent_float() {
     let input = "-23.0 ^ 8.0";
-    let expected_output = vec![r"(-23.0^8.0)"];
+    let expected_output = vec![r"((-23.0)^8.0)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);

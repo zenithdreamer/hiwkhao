@@ -8,9 +8,9 @@ use std::fmt;
 
 #[derive(Logos, Clone, Debug, PartialEq)]
 pub enum Token {
-    #[regex(r"[0-9]+\.[0-9]+(e[-+]?[0-9]+)?", |lex| lex.slice().parse().map_err(|_| ()))]
+    #[regex(r"-?[0-9]+\.[0-9]+(e[-+]?[0-9]+)?", |lex| lex.slice().parse().map_err(|_| ()))]
         REAL(String),
-    #[regex(r"[0-9]+", |lex| lex.slice().parse().map_err(|_| ()))]
+    #[regex(r"-?[0-9]+", |lex| lex.slice().parse().map_err(|_| ()))]
         INT(String),
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string(), priority = 2)]
         VAR(String),

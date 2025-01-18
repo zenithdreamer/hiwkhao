@@ -13,27 +13,38 @@ pub enum Expr {
     Boolean(Box<Expr>, String, Box<Expr>),
     List(Vec<f64>),
     ListAccess(String, Box<Expr>),
+    UnaryOp(String, Box<Expr>),
 }
 
 impl Expr {
     fn to_string(&self) -> String {
         match self {
-            Expr::Number(n) => n.to_string(),
+            Expr::Number(n) => {
+                if n.fract() == 0.0 {
+                    n.to_string()
+                } else {
+                    format!("{:.1}", n)
+                }
+            }
             Expr::Variable(name) => name.clone(),
             Expr::BinaryOp(left, op, right) => {
                 format!("({}{}{})", left.to_string(), op, right.to_string())
+            }
+            Expr::UnaryOp(op, expr) => {
+                format!("({}{}", op, expr.to_string() + ")")
             }
             Expr::Assignment(var, expr) => {
                 format!("({}={})", var, expr.to_string())
             }
             Expr::Boolean(left, op, right) => {
-                format!("({}{}{})", left.to_string(), op, right.to_string())
+                format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
             }
             Expr::List(lst) => format!("(list[({})])", lst.len().to_string()),
             Expr::ListAccess(var, idx) => format!("({}[({})])", var, idx.to_string()),
         }
     }
 }
+
 #[derive(Debug, Clone)]
 pub struct Position {
     pub line: usize,
@@ -232,24 +243,37 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_term()?;
+        let expr = if let Some(Token::SUB) = self.peek() {
+            self.consume();
+            // Parse the next term and wrap it in a UnaryOp
+            let term = self.parse_term()?;
+            Expr::BinaryOp(
+                Box::new(Expr::UnaryOp("-".to_string(), Box::new(term))),
+                "+".to_string(),
+                Box::new(Expr::Number(0.0)),
+            )
+        } else {
+            self.parse_term()?
+        };
+
+        let mut result = expr;
 
         while let Some(token) = self.peek() {
             match token {
                 Token::ADD => {
                     self.consume();
                     let right = self.parse_term()?;
-                    left = Expr::BinaryOp(Box::new(left), "+".to_string(), Box::new(right));
+                    result = Expr::BinaryOp(Box::new(result), "+".to_string(), Box::new(right));
                 }
                 Token::SUB => {
                     self.consume();
                     let right = self.parse_term()?;
-                    left = Expr::BinaryOp(Box::new(left), "-".to_string(), Box::new(right));
+                    result = Expr::BinaryOp(Box::new(result), "-".to_string(), Box::new(right));
                 }
                 _ => break,
             }
         }
-        Ok(left)
+        Ok(result)
     }
 
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
@@ -272,16 +296,6 @@ impl Parser {
                     }
                     left = Expr::BinaryOp(Box::new(left), "/".to_string(), Box::new(right));
                 }
-                Token::INTDIV => {
-                    self.consume();
-                    let right = self.parse_factor()?;
-                    if let Expr::Number(n) = right {
-                        if n == 0.0 {
-                            return Err(ParseError::DivisionByZero(self.get_current_position()));
-                        }
-                    }
-                    left = Expr::BinaryOp(Box::new(left), "//".to_string(), Box::new(right));
-                }
                 _ => break,
             }
         }
@@ -289,14 +303,21 @@ impl Parser {
     }
 
     fn parse_factor(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_atom()?;
+        let mut expr = if let Some(Token::SUB) = self.peek() {
+            self.consume();
+            let atom = self.parse_atom()?;
+            Expr::UnaryOp("-".to_string(), Box::new(atom))
+        } else {
+            self.parse_atom()?
+        };
 
         while let Some(Token::POW) = self.peek() {
             self.consume();
             let right = self.parse_factor()?;
-            left = Expr::BinaryOp(Box::new(left), "^".to_string(), Box::new(right));
+            expr = Expr::BinaryOp(Box::new(expr), "^".to_string(), Box::new(right));
         }
-        Ok(left)
+
+        Ok(expr)
     }
 
     fn parse_atom(&mut self) -> Result<Expr, ParseError> {
