@@ -35,7 +35,7 @@ pub enum ParseError {
     SyntaxError(Position),
     UndefinedVariable(String, Position),
     InvalidAtom(Position),
-    IndexOutOfRange(Position),
+    IndexOutOfRange(Position, usize),
     DivisionByZero(Position),
     MissingIndex(Position),
     TokenizeError,
@@ -502,6 +502,23 @@ impl Parser {
                 ));
             }
 
+            match &self.variables[&name] {
+                Expr::List(lst) => {
+                    let index = match index_expr {
+                        Expr::Int(n) => n as usize,
+                        _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                    };
+
+                    if index >= lst.len() {
+                        return Err(ParseError::IndexOutOfRange(
+                            self.get_current_position(),
+                            index,
+                        ));
+                    }
+                }
+                _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+            }
+
             Ok(Expr::ListAccess(name, Box::new(index_expr)))
         } else {
             if !self.variables.contains_key(&name) {
@@ -643,8 +660,11 @@ impl Parser {
             ParseError::InvalidAtom(pos) => {
                 format!("Invalid atom at line {}, pos {}", pos.line, pos.column)
             }
-            ParseError::IndexOutOfRange(pos) => {
-                format!("IndexOutOfRange at line {}, pos {}", pos.line, pos.column)
+            ParseError::IndexOutOfRange(pos, index) => {
+                format!(
+                    "IndexOutOfRange at line {}, pos {}, index {}",
+                    pos.line, pos.column, index
+                )
             }
             ParseError::DivisionByZero(pos) => {
                 format!("Division by zero at line {}, pos {}", pos.line, pos.column)
