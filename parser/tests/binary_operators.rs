@@ -81,9 +81,49 @@ fn negative_addition() {
 }
 
 #[test]
+fn negative_addition_no_space() {
+    let input = "-23+8";
+    let expected_output = vec![r"((-23)+8)"];
+    let tokens = scanner_lib::tokenize(input);
+    let mut parser = parser::Parser::new(vec![]);
+    let output = parser.parse_tokens_fancy(tokens);
+    assert_eq!(output, expected_output);
+}
+
+#[test]
 fn negative_subtraction() {
     let input = "-23 - 8";
     let expected_output = vec![r"((-23)-8)"];
+    let tokens = scanner_lib::tokenize(input);
+    let mut parser = parser::Parser::new(vec![]);
+    let output = parser.parse_tokens_fancy(tokens);
+    assert_eq!(output, expected_output);
+}
+
+#[test]
+fn negative_subtraction_no_space_1() {
+    let input = "-23-8";
+    let expected_output = vec![r"((-23)-8)"];
+    let tokens = scanner_lib::tokenize(input);
+    let mut parser = parser::Parser::new(vec![]);
+    let output = parser.parse_tokens_fancy(tokens);
+    assert_eq!(output, expected_output);
+}
+
+#[test]
+fn negative_subtraction_no_space_2() {
+    let input = "23-8";
+    let expected_output = vec![r"(23-8)"];
+    let tokens = scanner_lib::tokenize(input);
+    let mut parser = parser::Parser::new(vec![]);
+    let output = parser.parse_tokens_fancy(tokens);
+    assert_eq!(output, expected_output);
+}
+
+#[test]
+fn negative_subtraction_no_space_3() {
+    let input = "- 23 - 8";
+    let expected_output = vec![r"(-(23-8))"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
