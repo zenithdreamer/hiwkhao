@@ -734,10 +734,6 @@ impl Parser {
     }
 
     pub fn parse_tokens_fancy(&mut self, input: Lexer<'_, Token>) -> Vec<String> {
-        self.parse_tokens_with_output(input)
-    }
-
-    fn parse_tokens_with_output(&mut self, input: Lexer<'_, Token>) -> Vec<String> {
         let tokens = input.collect::<Vec<_>>();
         let lines = self.split_into_lines(tokens);
         let mut output = Vec::new();

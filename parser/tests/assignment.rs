@@ -1,3 +1,4 @@
+use parser_lib;
 use scanner_lib;
 
 #[test]
@@ -5,7 +6,7 @@ fn variable_declearation() {
     let input = r"x = 3";
     let expected_output = vec!["(x=3)"];
     let tokens = scanner_lib::tokenize(input);
-    let mut parser = parser::Parser::new(vec![]);
+    let mut parser = parser_lib::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
     assert_eq!(output, expected_output);
 }
@@ -17,7 +18,7 @@ y = 4
 ";
     let expected_output = vec!["(x=3)", "(y=4)"];
     let tokens = scanner_lib::tokenize(input);
-    let mut parser = parser::Parser::new(vec![]);
+    let mut parser = parser_lib::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
     assert_eq!(output, expected_output);
 }
@@ -27,7 +28,7 @@ fn invalid_assignment() {
     let input = r"2 = 3";
     let expected_output = vec![r"SyntaxError at line 1, pos 1"];
     let tokens = scanner_lib::tokenize(input);
-    let mut parser = parser::Parser::new(vec![]);
+    let mut parser = parser_lib::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
     assert_eq!(output, expected_output);
 }
