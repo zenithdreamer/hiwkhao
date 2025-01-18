@@ -98,12 +98,14 @@ impl SymbolTable {
 
         // Write the data for each entry in the symbol table
         for entry in &self.entries {
+            let type_name = format!("{:?}", entry.value_type);
+            let trimmed_type = type_name.split('(').next().unwrap_or(&type_name); // Get only the type name
             wtr.write_record(&[
                 &entry.lexeme,
                 &entry.line_number.to_string(),
                 &entry.start_pos.to_string(),
                 &entry.length.to_string(),
-                &format!("{:?}", entry.value_type),
+                trimmed_type,
                 &entry.value,
             ])?;
         }

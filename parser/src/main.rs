@@ -38,7 +38,7 @@ fn main() {
         .write_to_csv(SYMBOL_TABLE_DEFAULT_OUTPUT_FILE)
         .unwrap();
 
-    println!("{:?}", table);
+    //println!("{:?}", table);
 
     //parser = Parser::new(vec![]);
     //result = parser.parse_file(input);
