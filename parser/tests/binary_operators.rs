@@ -33,7 +33,7 @@ fn positive_multiplication() {
 #[test]
 fn positive_division() {
     let input = "23.0 / 8.0";
-    let expected_output = vec![r"(23/8)"];
+    let expected_output = vec![r"(23.0/8.0)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -63,7 +63,7 @@ fn positive_exponent() {
 #[test]
 fn positive_exponent_float() {
     let input = "23.0 ^ 8.0";
-    let expected_output = vec![r"(23^8)"];
+    let expected_output = vec![r"(23.0^8.0)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);

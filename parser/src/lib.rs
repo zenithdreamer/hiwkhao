@@ -20,8 +20,8 @@ pub enum Expr {
 impl Expr {
     fn to_string(&self) -> String {
         match self {
-            Expr::Int(n) => n.to_string(),
-            Expr::Float(n) => n.to_string(),
+            Expr::Int(n) => format!("{}", n),
+            Expr::Float(n) => format!("{:.1}", *n as f64),
             Expr::Variable(name) => name.clone(),
             Expr::BinaryOp(left, op, right) => {
                 format!("({}{}{})", left.to_string(), op, right.to_string())
@@ -275,7 +275,6 @@ impl Parser {
 
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_factor()?;
-
         while let Some(token) = self.peek() {
             match token {
                 Token::MUL => {
@@ -304,13 +303,15 @@ impl Parser {
     }
 
     fn parse_factor(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = if let Some(Token::SUB) = self.peek() {
-            self.consume();
-            let atom = self.parse_atom()?;
-            Expr::UnaryOp("-".to_string(), Box::new(atom))
-        } else {
-            self.parse_atom()?
-        };
+        // let mut expr = if let Some(Token::SUB) = self.peek() {
+        //     self.consume();
+        //     let atom = self.parse_atom()?;
+        //     Expr::UnaryOp("-".to_string(), Box::new(atom))
+        // } else {
+        //     self.parse_atom()?
+        // };
+
+        let mut expr = self.parse_atom()?;
 
         while let Some(Token::POW) = self.peek() {
             self.consume();
@@ -322,7 +323,8 @@ impl Parser {
     }
 
     fn parse_atom(&mut self) -> Result<Expr, ParseError> {
-        match self.peek().cloned() {
+        let peeked = self.peek();
+        match peeked.cloned() {
             Some(Token::LPAREN) => {
                 self.consume();
                 let expr = self.parse_expression()?;
@@ -355,24 +357,13 @@ impl Parser {
                     .parse::<f64>()
                     .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
 
-                if number.fract() == 0.0 {
-                    if (number as i64) < 0 {
-                        return Ok(Expr::UnaryOp(
-                            "-".to_string(),
-                            Box::new(Expr::Int((number as i64).abs())),
-                        ));
-                    } else {
-                        Ok(Expr::Int(number as i64))
-                    }
+                if (number as i64) < 0 {
+                    return Ok(Expr::UnaryOp(
+                        "-".to_string(),
+                        Box::new(Expr::Int((number as i64).abs())),
+                    ));
                 } else {
-                    if number < 0.0 {
-                        return Ok(Expr::UnaryOp(
-                            "-".to_string(),
-                            Box::new(Expr::Float(number.abs())),
-                        ));
-                    } else {
-                        Ok(Expr::Float(number))
-                    }
+                    Ok(Expr::Int(number as i64))
                 }
             }
             Some(Token::REAL(n)) => {
@@ -401,24 +392,13 @@ impl Parser {
                     .parse::<f64>()
                     .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
 
-                if number.fract() == 0.0 {
-                    if (number as i64) < 0 {
-                        return Ok(Expr::UnaryOp(
-                            "-".to_string(),
-                            Box::new(Expr::Int((number as i64).abs())),
-                        ));
-                    } else {
-                        Ok(Expr::Int(number as i64))
-                    }
+                if (number as f64) < 0.0 {
+                    return Ok(Expr::UnaryOp(
+                        "-".to_string(),
+                        Box::new(Expr::Float(number.abs())),
+                    ));
                 } else {
-                    if number < 0.0 {
-                        return Ok(Expr::UnaryOp(
-                            "-".to_string(),
-                            Box::new(Expr::Float(number.abs())),
-                        ));
-                    } else {
-                        Ok(Expr::Float(number))
-                    }
+                    Ok(Expr::Float(number))
                 }
             }
             Some(Token::VAR(name)) => {
