@@ -275,7 +275,7 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         let mut result = self.parse_term()?;
-    
+
         while let Some(token) = self.peek() {
             match token {
                 Token::ADD | Token::SUB => {
@@ -314,7 +314,7 @@ impl Parser {
         }
         Ok(result)
     }
-    
+
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_factor()?;
 
@@ -322,12 +322,12 @@ impl Parser {
             match token {
                 Token::MUL | Token::DIV => {
                     let is_mul = matches!(self.consume().unwrap(), Token::MUL);
-                    
+
                     // Check if the next token is LIST
                     if let Some(Token::LIST) = self.peek() {
                         return Err(ParseError::SyntaxError(self.get_current_position()));
                     }
-                    
+
                     let right = self.parse_factor()?;
 
                     // Check if we're operating directly on a list (not list access)
@@ -400,48 +400,90 @@ impl Parser {
     }
 
     fn parse_number(&mut self, n: String, is_int: bool) -> Result<Expr, ParseError> {
-        self.consume();
+        let previous_token = self.consume();
+        let current_token = self.peek().cloned();
 
-        if let Some(token) = self.peek() {
-            if !matches!(
-                token,
-                Token::ADD
-                    | Token::SUB
-                    | Token::MUL
-                    | Token::DIV
-                    | Token::INTDIV
-                    | Token::POW
-                    | Token::EQ
-                    | Token::NE
-                    | Token::GT
-                    | Token::LT
-                    | Token::GE
-                    | Token::LE
-                    | Token::LPAREN
-                    | Token::RPAREN
-                    | Token::RBRACKET
-            ) {
-                return Err(ParseError::SyntaxError(self.get_current_position()));
-            }
-        }
+        println!(
+            "previous_token {:?}, current_token {:?}",
+            previous_token, current_token
+        );
 
-        let number = n
-            .parse::<f64>()
-            .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
+        // Check if currnet token is negative
+        let is_current_negative =
+            if let Some(Token::INT(n)) | Some(Token::REAL(n)) = current_token.clone() {
+                let number = n.parse::<f64>().unwrap();
+                number < 0.0
+            } else {
+                false
+            };
 
-        if number < 0.0 {
-            Ok(Expr::UnaryOp(
-                "-".to_string(),
-                Box::new(if is_int {
-                    Expr::Int(number.abs() as i64)
-                } else {
-                    Expr::Float(number.abs())
-                }),
-            ))
-        } else if is_int {
-            Ok(Expr::Int(number as i64))
+        println!("is_current_negative {:?}", is_current_negative);
+
+        // If the previous and current tokens are numbers (either int/real), and last token contains a negative sign, we assume this to be a binary operation and the last number is positive
+        if matches!(previous_token, Some(Token::INT(_)) | Some(Token::REAL(_)))
+            && matches!(current_token, Some(Token::INT(_)) | Some(Token::REAL(_)))
+            && is_current_negative
+        {
+            println!("negative_subtraction_no_space");
+            let prev = match previous_token.unwrap() {
+                Token::INT(n) => self.parse_number(n.to_string(), true)?,
+                Token::REAL(n) => self.parse_number(n.to_string(), false)?,
+                _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+            };
+            let curr = match current_token.unwrap() {
+                Token::INT(n) => {
+                    self.parse_number(n.parse::<i64>().unwrap().abs().to_string(), true)?
+                }
+                Token::REAL(n) => {
+                    self.parse_number(n.parse::<f64>().unwrap().abs().to_string(), false)?
+                }
+                _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+            };
+            let expr = Expr::BinaryOp(Box::new(prev), Token::SUB.to_string(), Box::new(curr));
+
+            Ok(expr)
         } else {
-            Ok(Expr::Float(number))
+            if let Some(token) = current_token {
+                if !matches!(
+                    token,
+                    Token::ADD
+                        | Token::SUB
+                        | Token::MUL
+                        | Token::DIV
+                        | Token::INTDIV
+                        | Token::POW
+                        | Token::EQ
+                        | Token::NE
+                        | Token::GT
+                        | Token::LT
+                        | Token::GE
+                        | Token::LE
+                        | Token::LPAREN
+                        | Token::RPAREN
+                        | Token::RBRACKET
+                ) {
+                    return Err(ParseError::SyntaxError(self.get_current_position()));
+                }
+            }
+
+            let number = n
+                .parse::<f64>()
+                .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?;
+
+            if number < 0.0 {
+                Ok(Expr::UnaryOp(
+                    "-".to_string(),
+                    Box::new(if is_int {
+                        Expr::Int(number.abs() as i64)
+                    } else {
+                        Expr::Float(number.abs())
+                    }),
+                ))
+            } else if is_int {
+                Ok(Expr::Int(number as i64))
+            } else {
+                Ok(Expr::Float(number))
+            }
         }
     }
 
