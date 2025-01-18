@@ -245,7 +245,6 @@ impl Parser {
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         let expr = if let Some(Token::SUB) = self.peek() {
             self.consume();
-            // Parse the next term and wrap it in a UnaryOp
             let term = self.parse_term()?;
             Expr::BinaryOp(
                 Box::new(Expr::UnaryOp("-".to_string(), Box::new(term))),
@@ -255,20 +254,23 @@ impl Parser {
         } else {
             self.parse_term()?
         };
-
+    
         let mut result = expr;
-
-        while let Some(token) = self.peek() {
+    
+        while let Some(token) = self.peek().cloned() {
             match token {
-                Token::ADD => {
+                Token::ADD | Token::SUB => {
                     self.consume();
+                    // Check if the next token is LIST
+                    if let Some(Token::LIST) = self.peek() {
+                        return Err(ParseError::SyntaxError(self.get_current_position()));
+                    }
                     let right = self.parse_term()?;
-                    result = Expr::BinaryOp(Box::new(result), "+".to_string(), Box::new(right));
-                }
-                Token::SUB => {
-                    self.consume();
-                    let right = self.parse_term()?;
-                    result = Expr::BinaryOp(Box::new(result), "-".to_string(), Box::new(right));
+                    result = Expr::BinaryOp(
+                        Box::new(result),
+                        if matches!(token, Token::ADD) { "+" } else { "-" }.to_string(),
+                        Box::new(right),
+                    );
                 }
                 _ => break,
             }
@@ -278,23 +280,21 @@ impl Parser {
 
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_factor()?;
-
-        while let Some(token) = self.peek() {
+    
+        while let Some(token) = self.peek().cloned() {
             match token {
-                Token::MUL => {
+                Token::MUL | Token::DIV => {
                     self.consume();
-                    let right = self.parse_factor()?;
-                    left = Expr::BinaryOp(Box::new(left), "*".to_string(), Box::new(right));
-                }
-                Token::DIV => {
-                    self.consume();
-                    let right = self.parse_factor()?;
-                    if let Expr::Number(n) = right {
-                        if n == 0.0 {
-                            return Err(ParseError::DivisionByZero(self.get_current_position()));
-                        }
+                    // Check if the next token is LIST
+                    if let Some(Token::LIST) = self.peek() {
+                        return Err(ParseError::SyntaxError(self.get_current_position()));
                     }
-                    left = Expr::BinaryOp(Box::new(left), "/".to_string(), Box::new(right));
+                    let right = self.parse_factor()?;
+                    left = Expr::BinaryOp(
+                        Box::new(left),
+                        if matches!(token, Token::MUL) { "*" } else { "/" }.to_string(),
+                        Box::new(right),
+                    );
                 }
                 _ => break,
             }
@@ -412,13 +412,23 @@ impl Parser {
                 } else {
                     return Err(ParseError::SyntaxError(self.get_current_position()));
                 };
-
+    
                 self.expect(Token::RBRACKET)?;
-
+    
+                // Check if list[n] is followed by any operation
+                if let Some(token) = self.peek() {
+                    match token {
+                        Token::ADD | Token::SUB | Token::MUL | Token::DIV | Token::POW => {
+                            return Err(ParseError::SyntaxError(self.get_current_position()));
+                        }
+                        _ => {}
+                    }
+                }
+    
                 if size == 0 {
                     return Err(ParseError::SyntaxError(self.get_current_position()));
                 }
-
+    
                 Ok(Expr::List(vec![0.0; size]))
             }
             Some(Token::ERR) => Err(ParseError::SyntaxError(self.get_current_position())),
