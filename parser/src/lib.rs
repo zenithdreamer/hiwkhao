@@ -37,6 +37,7 @@ pub enum ParseError {
     InvalidAtom(Position),
     IndexOutOfRange(Position),
     DivisionByZero(Position),
+    MissingIndex(Position),
     TokenizeError,
 }
 
@@ -411,23 +412,29 @@ impl Parser {
     }
 
     fn parse_list(&mut self) -> Result<Expr, ParseError> {
-        self.consume();
+        self.consume(); // Consume 'list' token
         self.expect(Token::LBRACKET)?;
-
+    
+        // Check if the next token is RBRACKET (empty brackets)
+        if let Some(Token::RBRACKET) = self.peek() {
+            return Err(ParseError::MissingIndex(self.get_current_position()));
+        }
+    
         let size = match self.consume() {
             Some(Token::INT(n)) => n
                 .parse::<usize>()
                 .map_err(|_| ParseError::SyntaxError(self.get_current_position()))?,
             _ => return Err(ParseError::SyntaxError(self.get_current_position())),
         };
-
+    
         if size == 0 {
             return Err(ParseError::SyntaxError(self.get_current_position()));
         }
-
+    
         self.expect(Token::RBRACKET)?;
         Ok(Expr::List(vec![0.0; size]))
     }
+    
 }
 
 // Public interface for parsing tokens
@@ -535,6 +542,9 @@ impl Parser {
             }
             ParseError::DivisionByZero(pos) => {
                 format!("Division by zero at line {}, pos {}", pos.line, pos.column)
+            }
+            ParseError::MissingIndex(pos) => {
+                format!("Missing index expression at line {}, pos {}", pos.line, pos.column)
             }
             ParseError::TokenizeError => "TokenizeError".to_string(),
         }
