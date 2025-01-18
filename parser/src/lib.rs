@@ -82,7 +82,7 @@ impl Parser {
             Token::INTDIV => 2, // //
             Token::NEWLINE => 1,
             Token::WHITESPACE => 1,
-            Token::ERR => 0,
+            Token::ERR => 1,
         }
     }
 
@@ -387,6 +387,8 @@ impl Parser {
 
                 Ok(Expr::List(vec![0.0; size]))
             }
+            Some(Token::ERR) => Err(ParseError::SyntaxError(self.get_current_position())),
+
             _ => Err(ParseError::InvalidAtom(self.get_current_position())),
         }
     }
@@ -435,12 +437,7 @@ impl Parser {
     }
 
     pub fn parse_tokens(&mut self, input: Lexer<'_, Token>) -> ParseResult {
-        let tokens = match input.collect::<Result<Vec<_>, _>>() {
-            Ok(tokens) => tokens,
-            Err(_) => {
-                return ParseResult::Error(ParseError::TokenizeError);
-            }
-        };
+        let tokens = input.collect::<Vec<_>>();
 
         // Split tokens into lines and track positions
         let mut current_line = 1;
@@ -451,7 +448,7 @@ impl Parser {
 
         for token in tokens {
             match &token {
-                Token::NEWLINE => {
+                Ok(Token::NEWLINE) => {
                     if !current_line_tokens.is_empty() {
                         lines.push((current_line_tokens, current_line_positions));
                         current_line_tokens = Vec::new();
@@ -459,13 +456,19 @@ impl Parser {
                     }
                     column = 1;
                 }
-                Token::WHITESPACE => {
+                Ok(Token::WHITESPACE) => {
                     column += 1;
                 }
                 _ => {
-                    current_line_positions.push(column);
-                    current_line_tokens.push(token);
-                    column += self.token_length(&current_line_tokens.last().unwrap());
+                    if let Ok(tok) = token {
+                        current_line_positions.push(column);
+                        current_line_tokens.push(tok);
+                        column += self.token_length(&current_line_tokens.last().unwrap());
+                    } else {
+                        current_line_positions.push(column);
+                        current_line_tokens.push(Token::ERR);
+                        column += self.token_length(&current_line_tokens.last().unwrap());
+                    }
                 }
             }
         }

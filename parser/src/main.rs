@@ -25,9 +25,10 @@ fn main() {
 
     let tokens = scanner_lib::tokenize(&input);
     let mut parser = Parser::new(vec![]);
+    println!("{:?}", tokens);
     let result = parser.parse_tokens(tokens);
 
-    //println!("{:?}", result);
+    println!("{:?}", result);
 
     //parser = Parser::new(vec![]);
     //result = parser.parse_file(input);
