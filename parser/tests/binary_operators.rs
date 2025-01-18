@@ -123,7 +123,7 @@ fn negative_division_integers() {
 #[test]
 fn zero_division() {
     let input = "23 / 0";
-    let expected_output = vec![r"TODO: ERROR: Division by zero"];
+    let expected_output = vec![r"Division by zero at line 1, pos 4"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
