@@ -480,6 +480,7 @@ impl Parser {
     fn parse_variable(&mut self, name: String) -> Result<Expr, ParseError> {
         self.consume();
 
+        // Check if we're dealing with a list index access
         if let Some(Token::LBRACKET) = self.peek() {
             self.consume();
             let index_expr = self.parse_expression()?;
@@ -492,6 +493,7 @@ impl Parser {
                 ));
             }
 
+            // Validate that we're accessing a list
             match &self.variables[&name] {
                 Expr::List(lst) => {
                     let index = match index_expr {
@@ -509,7 +511,96 @@ impl Parser {
                 _ => return Err(ParseError::SyntaxError(self.get_current_position())),
             }
 
-            Ok(Expr::ListAccess(name, Box::new(index_expr)))
+            // Check if this is an assignment to a list index
+            if let Some(Token::ASSIGN) = self.peek() {
+                self.consume(); // Consume the ASSIGN token
+
+                // Parse the value being assigned
+                let value = self.parse_expression()?;
+
+                match value.clone() {
+                    // Case 1: Assigning a number directly
+                    Expr::Int(n) => {
+                        if let Expr::List(ref mut lst) = self.variables.get_mut(&name).unwrap() {
+                            let idx = match index_expr {
+                                Expr::Int(i) => i as usize,
+                                _ => {
+                                    return Err(ParseError::SyntaxError(
+                                        self.get_current_position(),
+                                    ))
+                                }
+                            };
+                            if idx < lst.len() {
+                                lst[idx] = n as f64;
+                            }
+                        }
+                    }
+                    Expr::Float(n) => {
+                        if let Expr::List(ref mut lst) = self.variables.get_mut(&name).unwrap() {
+                            let idx = match index_expr {
+                                Expr::Int(i) => i as usize,
+                                _ => {
+                                    return Err(ParseError::SyntaxError(
+                                        self.get_current_position(),
+                                    ))
+                                }
+                            };
+                            if idx < lst.len() {
+                                lst[idx] = n;
+                            }
+                        }
+                    }
+                    // Case 2: Assigning from another list's index
+                    Expr::ListAccess(other_name, other_index) => {
+                        // Get the source value first
+                        let source_value =
+                            if let Some(Expr::List(lst)) = self.variables.get(&other_name) {
+                                lst.clone()
+                            } else {
+                                return Err(ParseError::SyntaxError(self.get_current_position()));
+                            };
+
+                        if let Some(Expr::List(ref mut target_lst)) = self.variables.get_mut(&name)
+                        {
+                            let target_idx = match index_expr {
+                                Expr::Int(i) => i as usize,
+                                _ => {
+                                    return Err(ParseError::SyntaxError(
+                                        self.get_current_position(),
+                                    ))
+                                }
+                            };
+                            let source_idx = match *other_index {
+                                Expr::Int(i) => i as usize,
+                                _ => {
+                                    return Err(ParseError::SyntaxError(
+                                        self.get_current_position(),
+                                    ))
+                                }
+                            };
+                            if target_idx < target_lst.len() && source_idx < source_value.len() {
+                                target_lst[target_idx] = source_value[source_idx];
+                            }
+                        }
+                    }
+                    _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                }
+
+                // Return the assignment expression
+                Ok(Expr::Assignment(
+                    format!(
+                        "{}[{}]",
+                        name,
+                        match index_expr {
+                            Expr::Int(i) => i.to_string(),
+                            _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                        }
+                    ),
+                    Box::new(value),
+                ))
+            } else {
+                Ok(Expr::ListAccess(name, Box::new(index_expr)))
+            }
         } else {
             if !self.variables.contains_key(&name) {
                 return Err(ParseError::UndefinedVariable(
@@ -523,10 +614,9 @@ impl Parser {
     }
 
     fn parse_list(&mut self) -> Result<Expr, ParseError> {
-        self.consume(); // Consume 'list' token
+        self.consume(); // Consume LIST token
         self.expect(Token::LBRACKET)?;
 
-        // Check if the next token is RBRACKET (empty brackets)
         if let Some(Token::RBRACKET) = self.peek() {
             return Err(ParseError::MissingIndex(self.get_current_position()));
         }
@@ -543,7 +633,81 @@ impl Parser {
         }
 
         self.expect(Token::RBRACKET)?;
-        Ok(Expr::List(vec![0.0; size]))
+
+        let mut list = vec![0.0; size];
+
+        if let Some(Token::ASSIGN) = self.peek() {
+            self.consume(); // Consume ASSIGN token
+
+            // Parse the value after assignment
+            match self.peek() {
+                // Case 1: Assigning a number
+                Some(Token::INT(..)) | Some(Token::REAL(..)) => {
+                    let value = match self.parse_expression()? {
+                        Expr::Int(n) => n as f64,
+                        Expr::Float(n) => n,
+                        Expr::UnaryOp(op, expr) => {
+                            let val = match *expr {
+                                Expr::Int(n) => n as f64,
+                                Expr::Float(n) => n,
+                                _ => {
+                                    return Err(ParseError::SyntaxError(
+                                        self.get_current_position(),
+                                    ))
+                                }
+                            };
+                            if op == "-" {
+                                -val
+                            } else {
+                                val
+                            }
+                        }
+                        _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                    };
+
+                    // Fill all elements with the same value
+                    list = vec![value; size];
+                }
+
+                // Case 2: Assigning another list
+                Some(Token::VAR(..)) => {
+                    let var_expr = self.parse_expression()?;
+                    match var_expr {
+                        Expr::Variable(name) => {
+                            if let Some(Expr::List(source_list)) =
+                                self.variables.get(&name).cloned()
+                            {
+                                if source_list.len() != size {
+                                    return Err(ParseError::SyntaxError(
+                                        self.get_current_position(),
+                                    ));
+                                }
+                                list = source_list;
+                            } else {
+                                return Err(ParseError::SyntaxError(self.get_current_position()));
+                            }
+                        }
+                        _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                    }
+                }
+
+                // Case 3: Assigning another list literal
+                Some(Token::LIST) => {
+                    let other_list = match self.parse_expression()? {
+                        Expr::List(l) => l,
+                        _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                    };
+                    if other_list.len() != size {
+                        return Err(ParseError::SyntaxError(self.get_current_position()));
+                    }
+                    list = other_list;
+                }
+
+                _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+            }
+        }
+
+        Ok(Expr::List(list))
     }
 }
 
