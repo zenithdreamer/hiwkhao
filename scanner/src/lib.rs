@@ -1,8 +1,14 @@
+use grammar::Token;
 use logos::Logos;
 
-mod grammar;
+pub mod grammar;
 
-fn tokenize(input: &str) -> Vec<(String, grammar::Token)> {
+pub fn tokenize(input: &str) -> logos::Lexer<'_, Token> {
+    let lexer = grammar::Token::lexer(input);
+    lexer
+}
+
+pub fn tokenize_vector(input: &str) -> Vec<(String, grammar::Token)> {
     let mut lexer = grammar::Token::lexer(input);
     let mut tokens = Vec::new();
 
@@ -22,14 +28,14 @@ pub fn run_scanner(input: &str) -> Vec<String> {
     let mut final_output: Vec<String> = vec![];
 
     for line in lines {
-        let tokens = tokenize(line);
+        let tokens = tokenize_vector(line);
         let formatted_output: Vec<String> = tokens
             .into_iter()
             .map(|(word, token)| {
                 let token_name = match token {
-                    grammar::Token::REAL => "REAL",
-                    grammar::Token::INT => "INT",
-                    grammar::Token::VAR => "VAR",
+                    grammar::Token::REAL(_) => "REAL",
+                    grammar::Token::INT(_) => "INT",
+                    grammar::Token::VAR(_) => "VAR",
                     grammar::Token::ADD => "+",
                     grammar::Token::SUB => "-",
                     grammar::Token::MUL => "*",

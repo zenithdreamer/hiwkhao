@@ -20,3 +20,4 @@ GT >
 ASSIGN =
 LIST list
 WHITESPACE \s+
+NEWLINE \n

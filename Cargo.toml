@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = [
+members = [ "parser",
     "preprocessor",
-    "scanner"
+    "scanner",
+    "parser"
 ]
 
 [dependencies]
 scanner = { path = "./scanner" }
+parser = { path = "./parser" }
