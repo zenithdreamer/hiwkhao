@@ -52,7 +52,7 @@ pub enum Token {
         LIST,
     #[regex(r"\s+", logos::skip, priority = 1)]
         WHITESPACE,
-    #[regex(r"\n")]
+    #[regex(r"\r?\n")]
         NEWLINE,
     #[allow(dead_code)]
     ERR,

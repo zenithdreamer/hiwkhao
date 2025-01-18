@@ -1,3 +1,4 @@
+use logos::Lexer;
 use scanner_lib::grammar::Token;
 use std::{collections::HashMap, str::FromStr};
 
@@ -49,6 +50,7 @@ pub enum ParseError {
     UndefinedVariable(String, Position),
     InvalidAtom(Position),
     IndexOutOfRange(Position),
+    TokenizeError,
 }
 pub struct Parser {
     tokens: Vec<Token>,
@@ -389,10 +391,6 @@ impl Parser {
         }
     }
 
-    fn get_error_position(&self) -> Position {
-        self.get_current_position()
-    }
-
     pub fn parse_file(&mut self, input: &str) -> ParseResult {
         // Tokenize the entire file
         let tokens = match scanner_lib::tokenize(input).collect::<Result<Vec<_>, _>>() {
@@ -436,14 +434,11 @@ impl Parser {
         ParseResult::Success("Parsing completed".to_string())
     }
 
-    pub fn parse_file_pretty(&mut self, input: &str) -> ParseResult {
-        let tokens = match scanner_lib::tokenize(input).collect::<Result<Vec<_>, _>>() {
+    pub fn parse_tokens(&mut self, input: Lexer<'_, Token>) -> ParseResult {
+        let tokens = match input.collect::<Result<Vec<_>, _>>() {
             Ok(tokens) => tokens,
             Err(_) => {
-                return ParseResult::Error(ParseError::SyntaxError(Position {
-                    line: self.current_line,
-                    column: 0,
-                }));
+                return ParseResult::Error(ParseError::TokenizeError);
             }
         };
 
@@ -509,6 +504,9 @@ impl Parser {
                         }
                         ParseError::IndexOutOfRange(pos) => {
                             println!("IndexOutOfRange at line {}, pos {}", pos.line, pos.column);
+                        }
+                        ParseError::TokenizeError => {
+                            println!("TokenizeError");
                         }
                     }
                     current_line += 1;

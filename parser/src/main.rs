@@ -1,19 +1,31 @@
 use parser::Parser;
 
+const SCANNER_DEFAULT_OUTPUT_FILE: &str = "hiwkhao.tok";
+
+fn scanner(input: &String) {
+    let result = scanner_lib::run_scanner(&input);
+    //println!("{}", result.join("\n"));
+
+    let output_file = std::env::args()
+        .nth(2)
+        .unwrap_or(SCANNER_DEFAULT_OUTPUT_FILE.to_string());
+
+    std::fs::write(output_file, result.join("\n")).unwrap();
+}
+
 fn main() {
-    let input = r"23+8
-25 * 0
-5NUM^ 3.0
-x=5
-10*x
-x=y
-x!=5
-(2+5)
-x = list[2]
-x[0] + x[1]
-";
+    let input = if let Some(file_path) = std::env::args().nth(1) {
+        std::fs::read_to_string(file_path).unwrap()
+    } else {
+        eprintln!("No input file provided.");
+        std::process::exit(1);
+    };
+
+    scanner(&input);
+
+    let tokens = scanner_lib::tokenize(&input);
     let mut parser = Parser::new(vec![]);
-    let mut result = parser.parse_file_pretty(input);
+    let result = parser.parse_tokens(tokens);
 
     //println!("{:?}", result);
 
