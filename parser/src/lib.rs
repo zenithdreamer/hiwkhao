@@ -305,8 +305,6 @@ impl Parser {
                         _ => unreachable!(),
                     };
                     let right = self.parse_term()?;
-                    println!("result {:?}", result);
-                    println!("right {:?}", right);
                     result = Expr::Boolean(Box::new(result), op.to_string(), Box::new(right));
                 }
                 _ => break,
@@ -403,11 +401,6 @@ impl Parser {
         let previous_token = self.consume();
         let current_token = self.peek().cloned();
 
-        println!(
-            "previous_token {:?}, current_token {:?}",
-            previous_token, current_token
-        );
-
         // Check if currnet token is negative
         let is_current_negative =
             if let Some(Token::INT(n)) | Some(Token::REAL(n)) = current_token.clone() {
@@ -416,8 +409,6 @@ impl Parser {
             } else {
                 false
             };
-
-        println!("is_current_negative {:?}", is_current_negative);
 
         // If the previous and current tokens are numbers (either int/real), and last token contains a negative sign, we assume this to be a binary operation and the last number is positive
         if matches!(previous_token, Some(Token::INT(_)) | Some(Token::REAL(_)))
