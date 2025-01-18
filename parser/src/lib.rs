@@ -2,6 +2,8 @@ use logos::Lexer;
 use scanner_lib::grammar::Token;
 use std::{collections::HashMap, str::FromStr};
 
+pub mod symbol_table;
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Number(f64),
@@ -61,31 +63,31 @@ pub struct Parser {
     token_positions: Vec<usize>,
 }
 
-impl Parser {
-    fn token_length(&self, token: &Token) -> usize {
-        match token {
-            Token::VAR(name) => name.len(),
-            Token::INT(n) => n.len(),
-            Token::REAL(n) => n.len(),
-            Token::ADD | Token::SUB | Token::MUL | Token::DIV => 1,
-            Token::POW => 1,
-            Token::LPAREN | Token::RPAREN => 1,
-            Token::LBRACKET | Token::RBRACKET => 1,
-            Token::ASSIGN => 1,
-            Token::EQ => 2,     // ==
-            Token::NE => 2,     // !=
-            Token::GT => 1,     // >
-            Token::LE => 2,     // <=
-            Token::GE => 2,     // >=
-            Token::LT => 1,     // <
-            Token::LIST => 4,   // "list"
-            Token::INTDIV => 2, // //
-            Token::NEWLINE => 1,
-            Token::WHITESPACE => 1,
-            Token::ERR => 1,
-        }
+pub fn token_length(token: &Token) -> usize {
+    match token {
+        Token::VAR(name) => name.len(),
+        Token::INT(n) => n.len(),
+        Token::REAL(n) => n.len(),
+        Token::ADD | Token::SUB | Token::MUL | Token::DIV => 1,
+        Token::POW => 1,
+        Token::LPAREN | Token::RPAREN => 1,
+        Token::LBRACKET | Token::RBRACKET => 1,
+        Token::ASSIGN => 1,
+        Token::EQ => 2,     // ==
+        Token::NE => 2,     // !=
+        Token::GT => 1,     // >
+        Token::LE => 2,     // <=
+        Token::GE => 2,     // >=
+        Token::LT => 1,     // <
+        Token::LIST => 4,   // "list"
+        Token::INTDIV => 2, // //
+        Token::NEWLINE => 1,
+        Token::WHITESPACE => 1,
+        Token::ERR => 1,
     }
+}
 
+impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Parser {
             tokens,
@@ -107,7 +109,7 @@ impl Parser {
             self.pos += 1;
 
             // Update column based on token length
-            self.current_column += self.token_length(&token);
+            self.current_column += token_length(&token);
 
             // Add space after token if there is one and it's not the last token
             if self.pos < self.tokens.len() {
@@ -393,49 +395,6 @@ impl Parser {
         }
     }
 
-    pub fn parse_file(&mut self, input: &str) -> ParseResult {
-        // Tokenize the entire file
-        let tokens = match scanner_lib::tokenize(input).collect::<Result<Vec<_>, _>>() {
-            Ok(tokens) => tokens,
-            Err(_) => {
-                let pos = Position {
-                    line: self.current_line,
-                    column: 0,
-                };
-                println!("SyntaxError at line {}, pos {}", pos.line, pos.column);
-                return ParseResult::Error(ParseError::SyntaxError(pos));
-            }
-        };
-
-        // Split tokens into lines
-        let lines: Vec<Vec<Token>> = tokens
-            .split(|token| match token {
-                Token::NEWLINE => true,
-                _ => false,
-            })
-            .map(|tokens| tokens.to_vec())
-            .collect();
-
-        // Process each line
-        for (line_num, line_tokens) in lines.into_iter().enumerate() {
-            self.tokens = line_tokens;
-            self.pos = 0;
-            self.current_line = line_num + 1;
-
-            match self.parse() {
-                Ok(expr) => {
-                    println!("{:?}", expr);
-                }
-                Err(err) => {
-                    println!("{:?}", err);
-                }
-            }
-        }
-
-        // Return success if everything parses correctly
-        ParseResult::Success("Parsing completed".to_string())
-    }
-
     pub fn parse_tokens(&mut self, input: Lexer<'_, Token>) -> ParseResult {
         let tokens = input.collect::<Vec<_>>();
 
@@ -463,11 +422,11 @@ impl Parser {
                     if let Ok(tok) = token {
                         current_line_positions.push(column);
                         current_line_tokens.push(tok);
-                        column += self.token_length(&current_line_tokens.last().unwrap());
+                        column += token_length(&current_line_tokens.last().unwrap());
                     } else {
                         current_line_positions.push(column);
                         current_line_tokens.push(Token::ERR);
-                        column += self.token_length(&current_line_tokens.last().unwrap());
+                        column += token_length(&current_line_tokens.last().unwrap());
                     }
                 }
             }
