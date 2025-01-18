@@ -56,9 +56,34 @@ pub struct Parser {
     variables: HashMap<String, Expr>,
     current_line: usize,
     current_column: usize,
+    token_positions: Vec<usize>,
 }
 
 impl Parser {
+    fn token_length(&self, token: &Token) -> usize {
+        match token {
+            Token::VAR(name) => name.len(),
+            Token::INT(n) => n.len(),
+            Token::REAL(n) => n.len(),
+            Token::ADD | Token::SUB | Token::MUL | Token::DIV => 1,
+            Token::POW => 1,
+            Token::LPAREN | Token::RPAREN => 1,
+            Token::LBRACKET | Token::RBRACKET => 1,
+            Token::ASSIGN => 1,
+            Token::EQ => 2,     // ==
+            Token::NE => 2,     // !=
+            Token::GT => 1,     // >
+            Token::LE => 2,     // <=
+            Token::GE => 2,     // >=
+            Token::LT => 1,     // <
+            Token::LIST => 4,   // "list"
+            Token::INTDIV => 2, // //
+            Token::NEWLINE => 1,
+            Token::WHITESPACE => 1,
+            Token::ERR => 0,
+        }
+    }
+
     pub fn new(tokens: Vec<Token>) -> Self {
         Parser {
             tokens,
@@ -66,6 +91,7 @@ impl Parser {
             variables: HashMap::new(),
             current_line: 1,
             current_column: 1,
+            token_positions: Vec::new(),
         }
     }
 
@@ -77,9 +103,17 @@ impl Parser {
         if self.pos < self.tokens.len() {
             let token = self.tokens[self.pos].clone();
             self.pos += 1;
-            // Update position based on the consumed token's length
-            let token_length = token.to_string().len();
-            self.current_column += token_length;
+
+            // Update column based on token length
+            self.current_column += self.token_length(&token);
+
+            // Add space after token if there is one and it's not the last token
+            if self.pos < self.tokens.len() {
+                // Check if there's whitespace between current token and next token
+                // This would need to be provided by your scanner/tokenizer
+                self.current_column += 1; // Assuming single space between tokens
+            }
+
             Some(token)
         } else {
             None
@@ -106,7 +140,13 @@ impl Parser {
     fn get_current_position(&self) -> Position {
         Position {
             line: self.current_line,
-            column: self.current_column,
+            column: if self.pos > 0 && self.pos <= self.token_positions.len() {
+                self.token_positions[self.pos - 1]
+            } else if !self.token_positions.is_empty() {
+                self.token_positions[0]
+            } else {
+                self.current_column
+            },
         }
     }
 
@@ -397,81 +437,88 @@ impl Parser {
     }
 
     pub fn parse_file_pretty(&mut self, input: &str) -> ParseResult {
-        // Tokenize the entire file
         let tokens = match scanner_lib::tokenize(input).collect::<Result<Vec<_>, _>>() {
             Ok(tokens) => tokens,
             Err(_) => {
-                let pos = Position {
+                return ParseResult::Error(ParseError::SyntaxError(Position {
                     line: self.current_line,
                     column: 0,
-                };
-                println!("SyntaxError at line {}, pos {}", pos.line, pos.column);
-                return ParseResult::Error(ParseError::SyntaxError(pos));
+                }));
             }
         };
 
-        // Split tokens into lines
-        let lines: Vec<Vec<Token>> = tokens
-            .split(|token| match token {
-                Token::NEWLINE => true,
-                _ => false,
-            })
-            .map(|tokens| tokens.to_vec())
-            .collect();
+        // Split tokens into lines and track positions
+        let mut current_line = 1;
+        let mut lines: Vec<(Vec<Token>, Vec<usize>)> = Vec::new();
+        let mut current_line_tokens = Vec::new();
+        let mut current_line_positions = Vec::new();
+        let mut column = 1;
 
-        // Process each line
-        for (line_num, line_tokens) in lines.into_iter().enumerate() {
-            self.tokens = line_tokens;
-            self.pos = 0;
-            self.current_line = line_num + 1;
-
-            match self.parse() {
-                Ok(expr) => {
-                    if let Some(Token::LBRACKET) = self.peek() {
-                        self.consume();
-                        let idx = self.parse_expression();
-                        if let Err(err) = self.expect(Token::RBRACKET) {
-                            println!("{:?}", err);
-                        }
-
-                        if let Ok(Expr::Number(index)) = idx {
-                            let _idx = index as usize;
-                            println!("{}", expr.to_string());
-                        } else {
-                            println!("Invalid list access");
-                        }
-                    } else {
-                        println!("{}", expr.to_string());
+        for token in tokens {
+            match &token {
+                Token::NEWLINE => {
+                    if !current_line_tokens.is_empty() {
+                        lines.push((current_line_tokens, current_line_positions));
+                        current_line_tokens = Vec::new();
+                        current_line_positions = Vec::new();
                     }
+                    column = 1;
                 }
-                Err(err) => match err {
-                    ParseError::UndefinedVariable(var, pos) => {
-                        println!(
-                            "Undefined variable {} at line {}, pos {}",
-                            var, pos.line, pos.column
-                        );
-                    }
-                    ParseError::SyntaxError(pos) => {
-                        println!("SyntaxError at line {}, pos {}", pos.line, pos.column);
-                    }
-                    ParseError::IndexOutOfRange(pos) => {
-                        println!("IndexOutOfRange at line {}, pos {}", pos.line, pos.column);
-                    }
-                    ParseError::InvalidAtom(pos) => {
-                        if self.pos >= self.tokens.len() {
-                            continue;
-                        }
-                        println!("Invalid atom at line {}, pos {}", pos.line, pos.column)
-                    }
-                },
+                Token::WHITESPACE => {
+                    column += 1;
+                }
+                _ => {
+                    current_line_positions.push(column);
+                    current_line_tokens.push(token);
+                    column += self.token_length(&current_line_tokens.last().unwrap());
+                }
             }
         }
 
-        // Return success if everything parses correctly
+        // Add the last line if it doesn't end with a newline
+        if !current_line_tokens.is_empty() {
+            lines.push((current_line_tokens, current_line_positions));
+        }
+
+        // Process each line
+        for (line_num, (line_tokens, positions)) in lines.iter().enumerate() {
+            self.tokens = line_tokens.clone();
+            self.token_positions = positions.clone();
+            self.pos = 0;
+            self.current_line = current_line;
+            self.current_column = 1;
+
+            match self.parse() {
+                Ok(expr) => {
+                    println!("{}", expr.to_string());
+                    current_line += 1;
+                }
+                Err(err) => {
+                    match err {
+                        ParseError::UndefinedVariable(var, pos) => {
+                            println!(
+                                "Undefined variable {} at line {}, pos {}",
+                                var, pos.line, pos.column
+                            );
+                        }
+                        ParseError::SyntaxError(pos) => {
+                            println!("SyntaxError at line {}, pos {}", pos.line, pos.column);
+                        }
+                        ParseError::InvalidAtom(pos) => {
+                            println!("Invalid atom at line {}, pos {}", pos.line, pos.column);
+                        }
+                        ParseError::IndexOutOfRange(pos) => {
+                            println!("IndexOutOfRange at line {}, pos {}", pos.line, pos.column);
+                        }
+                    }
+                    current_line += 1;
+                }
+            }
+        }
+
         ParseResult::Success("Parsing completed".to_string())
     }
 }
-
 fn main() {
     let input = r"23+8
 25 * 0
