@@ -1,10 +1,10 @@
 use csv::Writer;
 use scanner_lib::grammar::Token;
-use std::collections::HashMap;
+//use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 
-use crate::{Expr, TokenInfo};
+use crate::TokenInfo;
 
 #[derive(Debug)]
 pub struct SymbolTableEntry {
@@ -19,24 +19,24 @@ pub struct SymbolTableEntry {
 #[derive(Debug)]
 pub struct SymbolTable {
     entries: Vec<SymbolTableEntry>,
-    tokens: Vec<Token>,
-    pos: usize,
-    variables: HashMap<String, Expr>,
-    current_line: usize,
-    current_column: usize,
-    token_positions: Vec<usize>,
+    // tokens: Vec<Token>,
+    // pos: usize,
+    // variables: HashMap<String, Expr>,
+    // current_line: usize,
+    // current_column: usize,
+    // token_positions: Vec<usize>,
 }
 
 impl SymbolTable {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(_tokens: Vec<Token>) -> Self {
         SymbolTable {
             entries: Vec::new(),
-            tokens,
-            pos: 0,
-            variables: HashMap::new(),
-            current_line: 1,
-            current_column: 1,
-            token_positions: Vec::new(),
+            // tokens,
+            // pos: 0,
+            // variables: HashMap::new(),
+            // current_line: 1,
+            // current_column: 1,
+            // token_positions: Vec::new(),
         }
     }
 
@@ -119,7 +119,7 @@ impl SymbolTable {
         let tokens: Vec<_> = input.clone().collect();
 
         // Split tokens into lines and track positions
-        let mut current_line = 1;
+        //let mut current_line = 1;
         let mut lines: Vec<(Vec<Token>, Vec<usize>)> = Vec::new();
         let mut current_line_tokens = Vec::new();
         let mut current_line_positions = Vec::new();

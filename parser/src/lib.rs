@@ -269,7 +269,7 @@ impl Parser {
                 }
                 _ => Ok(left),
             },
-            None => Ok(left),
+            _ => Ok(left),
         }
     }
 
