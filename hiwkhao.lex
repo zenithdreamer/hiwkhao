@@ -1,5 +1,5 @@
-REAL [0-9]+\.[0-9]+(e[-+]?[0-9]+)?
-INT [0-9]+
+REAL -?[0-9]+\.[0-9]+(e[-+]?[0-9]+)?
+INT -?[0-9]+
 VAR [a-zA-Z_][a-zA-Z0-9_]*
 ADD \+
 SUB -
@@ -20,3 +20,4 @@ GT >
 ASSIGN =
 LIST list
 WHITESPACE \s+
+NEWLINE \r?\n

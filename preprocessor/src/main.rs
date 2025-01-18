@@ -15,9 +15,11 @@ fn main() {
 // cargo run -p preprocessor
         
 use logos::Logos;
-#[derive(Logos, Debug, PartialEq)]
+use std::fmt;
+
+#[derive(Logos, Clone, Debug, PartialEq)]
 pub enum Token {
-        "#,
+"#,
     );
 
     for line in lines {
@@ -27,29 +29,81 @@ pub enum Token {
                 let token_type = parts[0];
                 let regex = parts[1].trim();
 
-                if token_type == "WHITESPACE" {
+                // Handle special cases where we want to generate a function-like enum variant
+                if ["REAL", "INT"].contains(&token_type) {
                     rust_code.push_str(&format!(
-                        r#"    #[regex(r"{regex}", logos::skip)]
-        {token_type},
-        "#,
-                        regex = regex
+                        r#"    #[regex(r"{regex}", |lex| lex.slice().parse().map_err(|_| ()))]
+        {token_type}(String),"#,
+                        regex = regex,
+                        token_type = token_type
+                    ));
+                } else if ["VAR"].contains(&token_type) {
+                    rust_code.push_str(&format!(
+                        r#"    #[regex(r"{regex}", |lex| lex.slice().to_string(), priority = 2)]
+        {token_type}(String),"#,
+                        regex = regex,
+                        token_type = token_type
+                    ));
+                } else if token_type == "WHITESPACE" {
+                    rust_code.push_str(&format!(
+                        r#"    #[regex(r"{regex}", logos::skip, priority = 1)]
+        {token_type},"#,
+                        regex = regex,
+                        token_type = token_type
                     ));
                 } else {
                     rust_code.push_str(&format!(
                         r#"    #[regex(r"{regex}")]
-        {token_type},
-        "#,
+        {token_type},"#,
                         regex = regex,
                         token_type = token_type
                     ));
                 }
+                rust_code.push_str("\n");
             }
         }
     }
 
-    rust_code.push_str("    ERR,\n");
+    rust_code.push_str("    #[allow(dead_code)]\n    ERR,\n");
 
     rust_code.push_str("}\n");
+
+    let display = String::from(
+        r#"
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::REAL(s) => write!(f, "{}", s),
+            Self::INT(s) => write!(f, "{}", s),
+            Self::VAR(s) => write!(f, "{}", s),
+            Self::ADD => write!(f, "+"),
+            Self::SUB => write!(f, "-"),
+            Self::MUL => write!(f, "*"),
+            Self::DIV => write!(f, "/"),
+            Self::INTDIV => write!(f, "//"),
+            Self::POW => write!(f, "^"),
+            Self::LPAREN => write!(f, "("),
+            Self::RPAREN => write!(f, ")"),
+            Self::LBRACKET => write!(f, "["),
+            Self::RBRACKET => write!(f, "]"),
+            Self::EQ => write!(f, "=="),
+            Self::NE => write!(f, "!="),
+            Self::LE => write!(f, "<="),
+            Self::GE => write!(f, ">="),
+            Self::LT => write!(f, "<"),
+            Self::GT => write!(f, ">"),
+            Self::ASSIGN => write!(f, "="),
+            Self::LIST => write!(f, "list"),
+            Self::WHITESPACE => write!(f, "<whitespace>"),
+            Self::ERR => write!(f, "<error>"),
+            Self::NEWLINE => write!(f, "<newline>"),
+        }
+    }
+}
+"#,
+    );
+
+    rust_code.push_str(&display);
 
     fs::write(output_file, rust_code).expect("Failed to write the generated Rust file");
 
