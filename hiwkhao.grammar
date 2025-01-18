@@ -2,7 +2,9 @@
 
 <statement> ::= <assignment> | <expression> | <boolean_expr> | <list_access>
 
-<assignment> ::= VAR "=" <expression>
+<assignment> ::= VAR "=" <expression> | <index_access> "=" <expression>
+
+<index_access> ::= VAR "[" INT "]"
 
 <expression> ::= <term> | <expression> "+" <term> | <expression> "-" <term>
 
@@ -10,7 +12,7 @@
 
 <factor> ::= <atom> | <factor> "^" <atom>
 
-<atom> ::= INT | REAL | VAR | "(" <expression> ")" | "-" <atom> | <list_access>
+<atom> ::= INT | REAL | VAR | "(" <expression> ")" | "-" <atom> | <list_access> | <index_access>
 
 <boolean_expr> ::= <expression> <comparison_op> <expression>
 
