@@ -214,7 +214,7 @@ fn negative_greater_than_or_equal_variables() {
 #[test]
 fn negative_less_than_or_equal_integers() {
     let input = "-23 <= 8";
-    let expected_output = vec![r"((-23))<=8)"];
+    let expected_output = vec![r"((-23)<=8)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);

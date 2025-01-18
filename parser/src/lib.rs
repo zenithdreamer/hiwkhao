@@ -166,7 +166,33 @@ impl Parser {
             Some(Token::VAR(_)) if self.tokens.get(self.pos + 1) == Some(&Token::ASSIGN) => {
                 self.parse_assignment()
             }
-            _ => self.parse_boolean(),
+            _ => {
+                let expr = self.parse_boolean()?;
+                if self.pos < self.tokens.len() {
+                    match self.tokens[self.pos] {
+                        Token::EQ | Token::NE | Token::GT | Token::LT | Token::GE | Token::LE => {
+                            let op = match self.consume().unwrap() {
+                                Token::EQ => "==",
+                                Token::NE => "!=",
+                                Token::GT => ">",
+                                Token::LT => "<",
+                                Token::GE => ">=",
+                                Token::LE => "<=",
+                                _ => unreachable!(),
+                            };
+                            let right = self.parse_expression()?;
+                            Ok(Expr::Boolean(
+                                Box::new(expr),
+                                op.to_string(),
+                                Box::new(right),
+                            ))
+                        }
+                        _ => Ok(expr),
+                    }
+                } else {
+                    Ok(expr)
+                }
+            }
         }
     }
 
@@ -191,34 +217,35 @@ impl Parser {
     }
 
     fn parse_boolean(&mut self) -> Result<Expr, ParseError> {
-        let left = self.parse_expression()?;
+        let left = if let Some(Token::SUB) = self.peek() {
+            self.consume();
+            let expr = self.parse_expression()?;
+            match expr {
+                Expr::Variable(name) => {
+                    Expr::UnaryOp("-".to_string(), Box::new(Expr::Variable(name)))
+                }
+                _ => expr,
+            }
+        } else {
+            self.parse_expression()?
+        };
 
         match self.peek() {
             Some(token) => match token {
-                Token::EQ => {
-                    self.consume();
+                Token::EQ | Token::NE | Token::GT | Token::LT | Token::GE | Token::LE => {
+                    let op = match self.consume().unwrap() {
+                        Token::EQ => "==",
+                        Token::NE => "!=",
+                        Token::GT => ">",
+                        Token::LT => "<",
+                        Token::GE => ">=",
+                        Token::LE => "<=",
+                        _ => unreachable!(),
+                    };
                     let right = self.parse_expression()?;
                     Ok(Expr::Boolean(
                         Box::new(left),
-                        "==".to_string(),
-                        Box::new(right),
-                    ))
-                }
-                Token::NE => {
-                    self.consume();
-                    let right = self.parse_expression()?;
-                    Ok(Expr::Boolean(
-                        Box::new(left),
-                        "!=".to_string(),
-                        Box::new(right),
-                    ))
-                }
-                Token::GT => {
-                    self.consume();
-                    let right = self.parse_expression()?;
-                    Ok(Expr::Boolean(
-                        Box::new(left),
-                        ">".to_string(),
+                        op.to_string(),
                         Box::new(right),
                     ))
                 }
@@ -229,17 +256,7 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut result = if let Some(Token::SUB) = self.peek() {
-            self.consume();
-            let term = self.parse_term()?;
-            Expr::BinaryOp(
-                Box::new(Expr::UnaryOp("-".to_string(), Box::new(term))),
-                "+".to_string(),
-                Box::new(Expr::Float(0.0)),
-            )
-        } else {
-            self.parse_term()?
-        };
+        let mut result = self.parse_term()?;
 
         while let Some(token) = self.peek() {
             match token {
@@ -251,6 +268,19 @@ impl Parser {
                     };
                     let right = self.parse_term()?;
                     result = Expr::BinaryOp(Box::new(result), op.to_string(), Box::new(right));
+                }
+                Token::EQ | Token::NE | Token::GT | Token::LT | Token::GE | Token::LE => {
+                    let op = match self.consume().unwrap() {
+                        Token::EQ => "==",
+                        Token::NE => "!=",
+                        Token::GT => ">",
+                        Token::LT => "<",
+                        Token::GE => ">=",
+                        Token::LE => "<=",
+                        _ => unreachable!(),
+                    };
+                    let right = self.parse_term()?;
+                    result = Expr::Boolean(Box::new(result), op.to_string(), Box::new(right));
                 }
                 _ => break,
             }
@@ -336,6 +366,9 @@ impl Parser {
                     | Token::EQ
                     | Token::NE
                     | Token::GT
+                    | Token::LT
+                    | Token::GE
+                    | Token::LE
                     | Token::LPAREN
                     | Token::RPAREN
                     | Token::RBRACKET
@@ -366,13 +399,6 @@ impl Parser {
 
     fn parse_variable(&mut self, name: String) -> Result<Expr, ParseError> {
         self.consume();
-
-        if !self.variables.contains_key(&name) {
-            return Err(ParseError::UndefinedVariable(
-                name,
-                self.get_current_position(),
-            ));
-        }
 
         if let Some(Token::LBRACKET) = self.peek() {
             self.consume();
