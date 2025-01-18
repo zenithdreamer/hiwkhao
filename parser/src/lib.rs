@@ -259,7 +259,7 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         let mut result = self.parse_term()?;
-
+    
         while let Some(token) = self.peek() {
             match token {
                 Token::ADD | Token::SUB => {
@@ -269,6 +269,13 @@ impl Parser {
                         "-"
                     };
                     let right = self.parse_term()?;
+                    // Allow list access in binary operations
+                    match (&result, &right) {
+                        (Expr::List(_), _) | (_, Expr::List(_)) => {
+                            return Err(ParseError::SyntaxError(self.get_current_position()))
+                        }
+                        _ => {}
+                    }
                     result = Expr::BinaryOp(Box::new(result), op.to_string(), Box::new(right));
                 }
                 Token::EQ | Token::NE | Token::GT | Token::LT | Token::GE | Token::LE => {
@@ -289,7 +296,7 @@ impl Parser {
         }
         Ok(result)
     }
-
+    
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_factor()?;
 
@@ -297,7 +304,28 @@ impl Parser {
             match token {
                 Token::MUL | Token::DIV => {
                     let is_mul = matches!(self.consume().unwrap(), Token::MUL);
+                    
+                    // Check if the next token is LIST
+                    if let Some(Token::LIST) = self.peek() {
+                        return Err(ParseError::SyntaxError(self.get_current_position()));
+                    }
+                    
                     let right = self.parse_factor()?;
+
+                    // Check if we're operating directly on a list (not list access)
+                    match (&left, &right) {
+                        (Expr::List(_), _) | (_, Expr::List(_)) => {
+                            return Err(ParseError::SyntaxError(self.get_current_position()))
+                        }
+                        _ => {}
+                    }
+                    // Check if we're operating on a list
+                    match (&left, &right) {
+                        (Expr::List(_), _) | (_, Expr::List(_)) => {
+                            return Err(ParseError::SyntaxError(self.get_current_position()))
+                        }
+                        _ => {}
+                    }
 
                     if !is_mul {
                         // Check for division by zero
