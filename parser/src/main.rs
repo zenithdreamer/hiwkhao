@@ -27,10 +27,8 @@ fn main() {
 
     let tokens = scanner_lib::tokenize(&input);
     let mut parser = Parser::new(vec![]);
-    println!("{:?}", tokens);
-    let result = parser.parse_tokens(tokens.clone());
 
-    println!("{:?}", result);
+    parser.parse_tokens(tokens.clone());
 
     let mut table = SymbolTable::new(vec![]);
     table.get_symbol_table(tokens);

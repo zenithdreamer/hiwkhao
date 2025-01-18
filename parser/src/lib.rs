@@ -415,7 +415,6 @@ impl Parser {
             && matches!(current_token, Some(Token::INT(_)) | Some(Token::REAL(_)))
             && is_current_negative
         {
-            println!("negative_subtraction_no_space");
             let prev = match previous_token.unwrap() {
                 Token::INT(n) => self.parse_number(n.to_string(), true)?,
                 Token::REAL(n) => self.parse_number(n.to_string(), false)?,
@@ -548,7 +547,6 @@ impl Parser {
     }
 }
 
-// Public interface for parsing tokens
 impl Parser {
     pub fn parse_tokens(&mut self, input: Lexer<'_, Token>) -> ParseResult {
         let output = self.parse_tokens_with_output(input);
