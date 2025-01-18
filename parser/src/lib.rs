@@ -57,8 +57,8 @@ impl Expr {
             Expr::Boolean(left, op, right) => {
                 format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
             }
-            Expr::List(lst) => format!("(list[{}])", lst.len()),
-            Expr::ListAccess(var, idx) => format!("({}[{}])", var, idx.to_string()),
+            Expr::List(lst) => format!("(list[({})])", lst.len()),
+            Expr::ListAccess(var, idx) => format!("({}[({})])", var, idx.to_string()),
         }
     }
 }
@@ -590,7 +590,7 @@ impl Parser {
                 // Return the assignment expression
                 Ok(Expr::Assignment(
                     format!(
-                        "{}[{}]",
+                        "{}[({})]",
                         name,
                         match index_expr {
                             Expr::Int(i) => i.to_string(),

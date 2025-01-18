@@ -4,7 +4,7 @@ use scanner_lib;
 #[test]
 fn list_with_index() {
     let input = "list[5]";
-    let expected_output = vec![r"(list[5])"];
+    let expected_output = vec![r"(list[(5)])"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser_lib::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -65,7 +65,7 @@ fn list_with_negative_index() {
 fn list_index_assignment_integer() {
     let input = r"x = list[2]
 x[0] = 5";
-    let expected_output = vec!["(x=(list[2]))", "(x[0]=5)"];
+    let expected_output = vec!["(x=(list[(2)]))", "(x[(0)]=5)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser_lib::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -76,7 +76,7 @@ x[0] = 5";
 fn list_index_assignment_real() {
     let input = r"x = list[2]
 x[0] = 5.0";
-    let expected_output = vec!["(x=(list[2]))", "(x[0]=5.0)"];
+    let expected_output = vec!["(x=(list[(2)]))", "(x[(0)]=5.0)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser_lib::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -86,7 +86,7 @@ x[0] = 5.0";
 #[test]
 fn list_index_assignment_variable() {
     let input = "x = list[2]";
-    let expected_output = vec![r"(x=(list[2]))"];
+    let expected_output = vec![r"(x=(list[(2)]))"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser_lib::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -99,7 +99,7 @@ fn list_index_assignment_list_indices() {
 y = list[3]
 x[0] = y[0]
 ";
-    let expected_output = vec!["(x=(list[2]))", "(y=(list[3]))", "(x[0]=(y[0]))"];
+    let expected_output = vec!["(x=(list[(2)]))", "(y=(list[(3)]))", "(x[(0)]=(y[(0)]))"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser_lib::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
