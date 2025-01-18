@@ -1,0 +1,19 @@
+<program> ::= <statement> | <statement> <program>
+
+<statement> ::= <assignment> | <expression> | <boolean_expr> | <list_access>
+
+<assignment> ::= VAR "=" <expression>
+
+<expression> ::= <term> | <expression> "+" <term> | <expression> "-" <term>
+
+<term> ::= <factor> | <term> "*" <factor> | <term> "/" <factor> | <term> "//" <factor>
+
+<factor> ::= <atom> | <factor> "^" <atom>
+
+<atom> ::= INT | REAL | VAR | "(" <expression> ")" | "-" <atom> | <list_access>
+
+<boolean_expr> ::= <expression> <comparison_op> <expression>
+
+<comparison_op> ::= "==" | "!=" | ">" | "<" | ">=" | "<="
+
+<list_access> ::= "list" "[" INT "]"
