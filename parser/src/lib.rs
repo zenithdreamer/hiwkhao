@@ -52,6 +52,7 @@ pub enum ParseError {
     UndefinedVariable(String, Position),
     InvalidAtom(Position),
     IndexOutOfRange(Position),
+    DivisionByZero(Position),
     TokenizeError,
 }
 pub struct Parser {
@@ -253,7 +254,7 @@ impl Parser {
 
     fn parse_term(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_factor()?;
-
+    
         while let Some(token) = self.peek() {
             match token {
                 Token::MUL => {
@@ -264,11 +265,21 @@ impl Parser {
                 Token::DIV => {
                     self.consume();
                     let right = self.parse_factor()?;
+                    if let Expr::Number(n) = right {
+                        if n == 0.0 {
+                            return Err(ParseError::DivisionByZero(self.get_current_position()));
+                        }
+                    }
                     left = Expr::BinaryOp(Box::new(left), "/".to_string(), Box::new(right));
                 }
                 Token::INTDIV => {
                     self.consume();
                     let right = self.parse_factor()?;
+                    if let Expr::Number(n) = right {
+                        if n == 0.0 {
+                            return Err(ParseError::DivisionByZero(self.get_current_position()));
+                        }
+                    }
                     left = Expr::BinaryOp(Box::new(left), "//".to_string(), Box::new(right));
                 }
                 _ => break,
@@ -276,6 +287,7 @@ impl Parser {
         }
         Ok(left)
     }
+    
 
     fn parse_factor(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_atom()?;
@@ -466,6 +478,9 @@ impl Parser {
                         }
                         ParseError::IndexOutOfRange(pos) => {
                             println!("IndexOutOfRange at line {}, pos {}", pos.line, pos.column);
+                        }
+                        ParseError::DivisionByZero(pos) => {
+                            println!("Division bye zero at line {}, pos {}", pos.line, pos.column);
                         }
                         ParseError::TokenizeError => {
                             println!("TokenizeError");
