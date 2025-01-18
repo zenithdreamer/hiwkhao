@@ -234,10 +234,10 @@ fn negative_less_than_or_equal_floats() {
 #[test]
 fn negative_less_than_or_equal_variables() {
     let input = r"x = 2
-    y = 3
-    -x <= y
+y = 3
+-x <= y
     ";
-    let expected_output = vec![r"((-x)<=y)"];
+    let expected_output = vec!["(x=2)", "(y=3)", "((-x)<=y)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -257,10 +257,10 @@ fn negative_less_than() {
 #[test]
 fn negative_less_than_variables() {
     let input = r"x = 2
-    y = 3
-    -x < y
+y = 3
+-x < y
     ";
-    let expected_output = vec![r"((-x)<y)"];
+    let expected_output = vec!["(x=2)", "(y=3)", "((-x)<y)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
@@ -346,10 +346,10 @@ fn negative_not_equal_floats() {
 #[test]
 fn negative_not_equal_variables() {
     let input = r"x = 2
-    y = 3
-    -x != y
-    ";
-    let expected_output = vec![r"((-x)!=y)"];
+y = 3
+-x != y
+";
+    let expected_output = vec!["(x=2)", "(y=3)", "((-x)!=y)"];
     let tokens = scanner_lib::tokenize(input);
     let mut parser = parser::Parser::new(vec![]);
     let output = parser.parse_tokens_fancy(tokens);
