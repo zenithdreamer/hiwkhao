@@ -8,7 +8,7 @@ members = [ "parser",
     "preprocessor",
     "scanner",
     "parser"
-]
+, "lex"]
 
 [dependencies]
 scanner = { path = "./scanner" }
