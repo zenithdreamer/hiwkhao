@@ -15,49 +15,9 @@ impl RegisterAllocator {
         self.next_reg += 1;
         reg
     }
-
-    fn reset(&mut self) {
-        self.next_reg = 0;
-    }
 }
 
-fn generate_value_load(expr: &Expr, symbol_table: &mut HashMap<String, i64>) -> Vec<String> {
-    let mut instructions = Vec::new();
-
-    match expr {
-        Expr::Int(n) => instructions.push(format!("LD R0 #{}", n)),
-        Expr::Float(n) => instructions.push(format!("LD R0 #{:.1}", n)),
-        Expr::Variable(var) => {
-            if let Some(_) = symbol_table.get(var) {
-                instructions.push(format!("LD R0 @{}", var));
-            } else {
-                instructions.push(format!("ERROR: Undefined variable {}", var));
-            }
-        }
-        _ => instructions.push("ERROR".to_string()),
-    }
-
-    instructions
-}
-
-fn is_float(expr: &Expr) -> bool {
-    match expr {
-        Expr::Float(_) => true,
-        Expr::Variable(_) => false, // Assuming variables are integers by default
-        Expr::Int(_) => false,
-        _ => false
-    }
-}
-
-fn get_float_value(expr: &Expr) -> Option<f64> {
-    match expr {
-        Expr::Float(n) => Some(*n),
-        Expr::Int(n) => Some(*n as f64),
-        _ => None
-    }
-}
-
-fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, symbol_table: &mut HashMap<String, i64>, reg_alloc: &mut RegisterAllocator) -> Vec<String> {
+fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table: &mut HashMap<String, i64>, reg_alloc: &mut RegisterAllocator) -> Vec<String> {
     let mut instructions = Vec::new();
     
     match (left, right) {
@@ -119,38 +79,6 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, symbol_table:
             instructions.push(format!("ST @print R{}", r2));
         }
         _ => instructions.push("ERROR".to_string()),
-    }
-    
-    instructions
-}
-
-fn generate_float_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table: &mut HashMap<String, i64>) -> Vec<String> {
-    let mut instructions = Vec::new();
-    
-    if let (Some(n1), Some(n2)) = (get_float_value(left), get_float_value(right)) {
-        instructions.push(format!("LD R0 #{:.1}", n1));
-        instructions.push(format!("LD R1 #{}", n2 as i64));
-        instructions.push("FL.i R1 R1".to_string());
-        
-        let op_code = match op {
-            "*" => "MUL.f",
-            "+" => "ADD.f",
-            "-" => "SUB.f",
-            "/" => "DIV.f",
-            _ => {
-                instructions.push("ERROR".to_string());
-                return instructions;
-            }
-        };
-        
-        instructions.push(format!("{} R2 R0 R1", op_code));
-        instructions.push("ST @print R2".to_string());
-        
-        if n2 == 0.0 && (op == "*" || op == "/") {
-            instructions.push("ERROR".to_string());
-        }
-    } else {
-        instructions.push("ERROR".to_string());
     }
     
     instructions

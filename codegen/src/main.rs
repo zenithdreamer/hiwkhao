@@ -1,8 +1,6 @@
-use codegen;
-use parser_lib::{Parser, symbol_table::SymbolTable};
+use parser_lib::Parser;
 use scanner_lib;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use codegen;
 
 const DEFAULT_OUTPUT_FILE: &str = "hiwkhao.asm";
 
