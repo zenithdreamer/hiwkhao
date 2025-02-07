@@ -37,6 +37,16 @@ cargo run -p parser sample.txt
 
 The parsed output will be saved in bracket format which is `hiwkhao.bracket` with symbol table `hiwkhao.csv` in CSV format.
 
+## Running Code Generation
+
+To generate code from an input file, use:
+
+```sh
+cargo run -p codegen sample.txt
+```
+
+The generated code will be saved in `hiwkhao.asm`.
+
 ## Running Tests
 
 To run all test cases for the parser:
@@ -46,3 +56,4 @@ cargo test --all
 ```
 
 The test suite includes cases for arithmetic operations, boolean expressions, variable assignments, and list operations.
+
