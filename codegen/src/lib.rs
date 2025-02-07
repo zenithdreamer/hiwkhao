@@ -22,6 +22,12 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table
     
     match (left, right) {
         (Expr::Int(n1), Expr::Int(n2)) => {
+            // Check for division by zero
+            if op == "/" && *n2 == 0 {
+                instructions.push("ERROR".to_string());
+                return instructions;
+            }
+            
             let r0 = reg_alloc.get_next_reg();
             let r1 = reg_alloc.get_next_reg();
             let r2 = reg_alloc.get_next_reg();
@@ -40,6 +46,35 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table
                 ">" => "GT.i",
                 "<=" => "LE.i",
                 ">=" => "GE.i",
+                _ => {
+                    instructions.push("ERROR".to_string());
+                    return instructions;
+                }
+            };
+            
+            instructions.push(format!("{} R{} R{} R{}", op_code, r2, r0, r1));
+            instructions.push(format!("ST @print R{}", r2));
+        }
+        (Expr::Int(n1), Expr::Float(n2)) => {
+            let r0 = reg_alloc.get_next_reg();
+            let r1 = reg_alloc.get_next_reg();
+            let r2 = reg_alloc.get_next_reg();
+            
+            instructions.push(format!("LD R{} #{}", r0, n1));
+            instructions.push(format!("FL.i R{} R{}", r0, r0));
+            instructions.push(format!("LD R{} #{}", r1, n2));
+            
+            let op_code = match op {
+                "+" => "ADD.f",
+                "-" => "SUB.f",
+                "*" => "MUL.f",
+                "/" => "DIV.f",
+                "==" => "EQ.f",
+                "!=" => "NE.f",
+                "<" => "LT.f",
+                ">" => "GT.f",
+                "<=" => "LE.f",
+                ">=" => "GE.f",
                 _ => {
                     instructions.push("ERROR".to_string());
                     return instructions;
@@ -78,6 +113,35 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table
             instructions.push(format!("{} R{} R{} R{}", op_code, r2, r0, r1));
             instructions.push(format!("ST @print R{}", r2));
         }
+        (Expr::Int(n), Expr::Variable(var)) | (Expr::Variable(var), Expr::Int(n)) => {
+            let r0 = reg_alloc.get_next_reg();
+            let r1 = reg_alloc.get_next_reg();
+            let r2 = reg_alloc.get_next_reg();
+            
+            // Load the integer and variable values
+            instructions.push(format!("LD R{} #{}", r0, n));
+            instructions.push(format!("LD R{} @{}", r1, var));
+            
+            let op_code = match op {
+                "+" => "ADD.i",
+                "-" => "SUB.i",
+                "*" => "MUL.i",
+                "/" => "DIV.i",
+                "==" => "EQ.i",
+                "!=" => "NE.i",
+                "<" => "LT.i",
+                ">" => "GT.i",
+                "<=" => "LE.i",
+                ">=" => "GE.i",
+                _ => {
+                    instructions.push("ERROR".to_string());
+                    return instructions;
+                }
+            };
+            
+            instructions.push(format!("{} R{} R{} R{}", op_code, r2, r0, r1));
+            instructions.push(format!("ST @print R{}", r2));
+        }
         _ => instructions.push("ERROR".to_string()),
     }
     
@@ -104,40 +168,16 @@ fn generate_instructions(expr: &Expr, symbol_table: &mut HashMap<String, i64>, r
         Expr::BinaryOp(left, op, right) => {
             println!("DEBUG [Codegen]: Generating instructions for binary op: {} {:?} {:?}", op, left, right);
             match op.as_str() {
-                "+" => {
-                    println!("DEBUG [Codegen]: Addition operation");
-                    instructions.extend(generate_binary_arithmetic(left, right, "+", symbol_table, reg_alloc))
+                "+" | "-" | "*" | "/" => {
+                    println!("DEBUG [Codegen]: {} operation", match op.as_str() {
+                        "+" => "Addition",
+                        "-" => "Subtraction",
+                        "*" => "Multiplication",
+                        "/" => "Division",
+                        _ => unreachable!()
+                    });
+                    instructions.extend(generate_binary_arithmetic(left, right, op, symbol_table, reg_alloc))
                 },
-                "*" => {
-                    println!("DEBUG [Codegen]: Multiplication operation");
-                    match (left.as_ref(), right.as_ref()) {
-                        (Expr::Int(n), Expr::Variable(var)) => {
-                            println!("DEBUG [Codegen]: Int * Variable: {} * {}", n, var);
-                            let r0 = reg_alloc.get_next_reg();
-                            let r1 = reg_alloc.get_next_reg();
-                            let r2 = reg_alloc.get_next_reg();
-                            instructions.push(format!("LD R{} #{}", r0, n));
-                            instructions.push(format!("LD R{} @{}", r1, var));
-                            instructions.push(format!("MUL.i R{} R{} R{}", r2, r0, r1));
-                            instructions.push(format!("ST @print R{}", r2));
-                        }
-                        (Expr::Float(n1), Expr::Int(n2)) => {
-                            println!("DEBUG [Codegen]: Float * Int: {} * {}", n1, n2);
-                            let r0 = reg_alloc.get_next_reg();
-                            let r1 = reg_alloc.get_next_reg();
-                            let r2 = reg_alloc.get_next_reg();
-                            instructions.push(format!("LD R{} #{}", r0, n1));
-                            instructions.push(format!("LD R{} #{}", r1, n2));
-                            instructions.push(format!("FL.i R{} R{}", r1, r1));
-                            instructions.push(format!("MUL.f R{} R{} R{}", r2, r0, r1));
-                            instructions.push(format!("ST @print R{}", r2));
-                        }
-                        _ => {
-                            println!("DEBUG [Codegen]: Invalid multiplication operands");
-                            instructions.push("ERROR".to_string())
-                        }
-                    }
-                }
                 "^" | "POW" => {
                     println!("DEBUG [Codegen]: Power operation detected");
                     instructions.push("ERROR".to_string())
