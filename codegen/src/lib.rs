@@ -263,6 +263,34 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table
             instructions.push(format!("{} R{} R{} R{}", op_code, r2, r0, r1));
             instructions.push(format!("ST @print R{}", r2));
         }
+        (Expr::Variable(var1), Expr::Variable(var2)) => {
+            let r0 = reg_alloc.get_next_reg();
+            let r1 = reg_alloc.get_next_reg();
+            let r2 = reg_alloc.get_next_reg();
+            
+            instructions.push(format!("LD R{} @{}", r0, var1));
+            instructions.push(format!("LD R{} @{}", r1, var2));
+            
+            let op_code = match op {
+                "+" => "ADD.i",
+                "-" => "SUB.i",
+                "*" => "MUL.i",
+                "/" => "DIV.i",
+                "==" => "EQ.i",
+                "!=" => "NE.i",
+                "<" => "LT.i",
+                ">" => "GT.i",
+                "<=" => "LE.i",
+                ">=" => "GE.i",
+                _ => {
+                    instructions.push("ERROR".to_string());
+                    return instructions;
+                }
+            };
+            
+            instructions.push(format!("{} R{} R{} R{}", op_code, r2, r0, r1));
+            instructions.push(format!("ST @print R{}", r2));
+        }
         _ => instructions.push("ERROR".to_string()),
     }
     
@@ -463,12 +491,18 @@ fn generate_instructions(
         Expr::BinaryOp(left, op, right) => {
             println!("DEBUG [Codegen]: Generating instructions for binary op: {} {:?} {:?}", op, left, right);
             match op.as_str() {
-                "+" | "-" | "*" | "/" => {
+                "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">" | "<=" | ">=" => {
                     println!("DEBUG [Codegen]: {} operation", match op.as_str() {
                         "+" => "Addition",
                         "-" => "Subtraction",
                         "*" => "Multiplication",
                         "/" => "Division",
+                        "==" => "Equality",
+                        "!=" => "Inequality",
+                        "<" => "Less than",
+                        ">" => "Greater than",
+                        "<=" => "Less than or equal",
+                        ">=" => "Greater than or equal",
                         _ => unreachable!()
                     });
                     temp_instructions.extend(generate_binary_arithmetic(left, right, op, symbol_table, reg_alloc))
@@ -670,6 +704,82 @@ fn test_undefined_variable() {
     let expected = vec![
         "LD R0 @y",
         "ST @x R0"
+    ];
+    assert_eq!(generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_variable_arithmetic() {
+    // Test variable addition
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from("+"),
+        Box::new(Expr::Variable(String::from("y")))
+    );
+    let expected = vec![
+        "LD R0 @x",
+        "LD R1 @y",
+        "ADD.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(generate_assembly(&expr), expected);
+
+    // Test variable subtraction
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Variable(String::from("a"))),
+        String::from("-"),
+        Box::new(Expr::Variable(String::from("b")))
+    );
+    let expected = vec![
+        "LD R0 @a",
+        "LD R1 @b",
+        "SUB.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(generate_assembly(&expr), expected);
+
+    // Test variable multiplication
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from("*"),
+        Box::new(Expr::Variable(String::from("y")))
+    );
+    let expected = vec![
+        "LD R0 @x",
+        "LD R1 @y",
+        "MUL.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_variable_comparison() {
+    // Test variable equality
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from("=="),
+        Box::new(Expr::Variable(String::from("y")))
+    );
+    let expected = vec![
+        "LD R0 @x",
+        "LD R1 @y",
+        "EQ.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(generate_assembly(&expr), expected);
+
+    // Test variable less than
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from("<"),
+        Box::new(Expr::Variable(String::from("y")))
+    );
+    let expected = vec![
+        "LD R0 @x",
+        "LD R1 @y",
+        "LT.i R2 R0 R1",
+        "ST @print R2"
     ];
     assert_eq!(generate_assembly(&expr), expected);
 }
