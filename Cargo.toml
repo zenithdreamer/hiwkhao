@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = [ "parser",
-    "preprocessor",
+members = [
+    "parser",
     "scanner",
-    "parser"
+    "codegen",
+    "preprocessor",
+    "emulator"
 ]
 
 [dependencies]

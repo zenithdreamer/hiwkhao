@@ -25,13 +25,13 @@ pub struct Position {
     pub column: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParseResult {
     Success(String),
     Error(ParseError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParseError {
     SyntaxError(Position),
     UndefinedVariable(String, Position),
@@ -53,7 +53,17 @@ impl Expr {
                 format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
             }
             Expr::UnaryOp(op, expr) => format!("({}{}", op, expr.to_string() + ")"),
-            Expr::Assignment(var, expr) => format!("({}={})", var, expr.to_string()),
+            Expr::Assignment(var, expr) => {
+                if var.contains('[') {
+                    // Extract the variable name and index
+                    let parts: Vec<&str> = var.split('[').collect();
+                    let var_name = parts[0];
+                    let index = parts[1].trim_end_matches(']');
+                    format!("({}[({})]={}", var_name, index, expr.to_string() + ")")
+                } else {
+                    format!("({}={})", var, expr.to_string())
+                }
+            }
             Expr::Boolean(left, op, right) => {
                 format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
             }
@@ -164,15 +174,80 @@ impl Parser {
     }
 
     fn parse_calculation(&mut self) -> Result<Expr, ParseError> {
+        println!("DEBUG [Parser]: Starting parse_calculation");
         match self.peek() {
-            Some(Token::VAR(_)) if self.tokens.get(self.pos + 1) == Some(&Token::ASSIGN) => {
-                self.parse_assignment()
+            Some(Token::VAR(_)) => {
+                // Look ahead to see if this is a list element assignment
+                let var_name = match self.peek() {
+                    Some(Token::VAR(name)) => name.clone(),
+                    _ => unreachable!(),
+                };
+                
+                // Save current position in case we need to backtrack
+                let current_pos = self.pos;
+                
+                // Try to parse as list element assignment
+                self.consume(); // Consume VAR
+                if let Some(Token::LBRACKET) = self.peek() {
+                    self.consume(); // Consume LBRACKET
+                    if let Some(Token::INT(_)) = self.peek() {
+                        let index_expr = self.parse_expression()?;
+                        self.expect(Token::RBRACKET)?;
+                        if let Some(Token::ASSIGN) = self.peek() {
+                            self.consume(); // Consume ASSIGN
+                            let value = self.parse_expression()?;
+                            return Ok(Expr::Assignment(
+                                format!("{}[{}]", var_name, match index_expr {
+                                    Expr::Int(i) => i.to_string(),
+                                    _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                                }),
+                                Box::new(value),
+                            ));
+                        }
+                    }
+                }
+                
+                // If not a list element assignment, reset position and try normal assignment
+                self.pos = current_pos;
+                if self.tokens.get(self.pos + 1) == Some(&Token::ASSIGN) {
+                    println!("DEBUG [Parser]: Found assignment expression");
+                    self.parse_assignment()
+                } else {
+                    let expr = self.parse_boolean()?;
+                    if self.pos < self.tokens.len() {
+                        match self.tokens[self.pos] {
+                            Token::EQ | Token::NE | Token::GT | Token::LT | Token::GE | Token::LE => {
+                                println!("DEBUG [Parser]: Found comparison operator");
+                                let op = match self.consume().unwrap() {
+                                    Token::EQ => "==",
+                                    Token::NE => "!=",
+                                    Token::GT => ">",
+                                    Token::LT => "<",
+                                    Token::GE => ">=",
+                                    Token::LE => "<=",
+                                    _ => unreachable!(),
+                                };
+                                println!("DEBUG [Parser]: Comparison operator: {}", op);
+                                let right = self.parse_expression()?;
+                                Ok(Expr::Boolean(
+                                    Box::new(expr),
+                                    op.to_string(),
+                                    Box::new(right),
+                                ))
+                            }
+                            _ => Ok(expr),
+                        }
+                    } else {
+                        Ok(expr)
+                    }
+                }
             }
             _ => {
                 let expr = self.parse_boolean()?;
                 if self.pos < self.tokens.len() {
                     match self.tokens[self.pos] {
                         Token::EQ | Token::NE | Token::GT | Token::LT | Token::GE | Token::LE => {
+                            println!("DEBUG [Parser]: Found comparison operator");
                             let op = match self.consume().unwrap() {
                                 Token::EQ => "==",
                                 Token::NE => "!=",
@@ -182,6 +257,7 @@ impl Parser {
                                 Token::LE => "<=",
                                 _ => unreachable!(),
                             };
+                            println!("DEBUG [Parser]: Comparison operator: {}", op);
                             let right = self.parse_expression()?;
                             Ok(Expr::Boolean(
                                 Box::new(expr),
@@ -199,28 +275,39 @@ impl Parser {
     }
 
     fn parse_assignment(&mut self) -> Result<Expr, ParseError> {
+        println!("DEBUG [Parser]: Starting parse_assignment");
         let name = match self.consume() {
             Some(Token::VAR(name)) => name,
-            _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+            _ => {
+                println!("DEBUG [Parser]: Error - Expected variable name in assignment");
+                return Err(ParseError::SyntaxError(self.get_current_position()));
+            }
         };
 
         self.expect(Token::ASSIGN)?;
 
         let expr = self.parse_expression()?;
+        println!("DEBUG [Parser]: Parsed assignment expression: {} = {:?}", name, expr);
 
         // Validate and store the assignment
         match &expr {
             Expr::List(lst) if lst.is_empty() => {
-                return Err(ParseError::SyntaxError(self.get_current_position()))
+                println!("DEBUG [Parser]: Error - Empty list in assignment");
+                return Err(ParseError::SyntaxError(self.get_current_position()));
             }
-            _ => self.variables.insert(name.clone(), expr.clone()),
+            _ => {
+                println!("DEBUG [Parser]: Storing variable in symbol table: {}", name);
+                self.variables.insert(name.clone(), expr.clone());
+            }
         };
 
         Ok(Expr::Assignment(name, Box::new(expr)))
     }
 
     fn parse_boolean(&mut self) -> Result<Expr, ParseError> {
+        println!("DEBUG [Parser]: Starting parse_boolean");
         let is_negative = if let Some(Token::SUB) = self.peek() {
+            println!("DEBUG [Parser]: Found negative expression");
             self.consume();
             true
         } else {
@@ -228,8 +315,10 @@ impl Parser {
         };
 
         let mut left = self.parse_expression()?;
+        println!("DEBUG [Parser]: Parsed left side of boolean: {:?}", left);
 
         if is_negative {
+            println!("DEBUG [Parser]: Applying negative to expression");
             left = match left {
                 Expr::Variable(name) => {
                     Expr::UnaryOp("-".to_string(), Box::new(Expr::Variable(name)))
@@ -249,29 +338,7 @@ impl Parser {
             };
         }
 
-        match self.peek() {
-            Some(token) => match token {
-                Token::EQ | Token::NE | Token::GT | Token::LT | Token::GE | Token::LE => {
-                    let op = match self.consume().unwrap() {
-                        Token::EQ => "==",
-                        Token::NE => "!=",
-                        Token::GT => ">",
-                        Token::LT => "<",
-                        Token::GE => ">=",
-                        Token::LE => "<=",
-                        _ => unreachable!(),
-                    };
-                    let right = self.parse_expression()?;
-                    Ok(Expr::Boolean(
-                        Box::new(left),
-                        op.to_string(),
-                        Box::new(right),
-                    ))
-                }
-                _ => Ok(left),
-            },
-            _ => Ok(left),
-        }
+        Ok(left)
     }
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
@@ -589,14 +656,10 @@ impl Parser {
 
                 // Return the assignment expression
                 Ok(Expr::Assignment(
-                    format!(
-                        "{}[({})]",
-                        name,
-                        match index_expr {
-                            Expr::Int(i) => i.to_string(),
-                            _ => return Err(ParseError::SyntaxError(self.get_current_position())),
-                        }
-                    ),
+                    format!("{}[({})]", name, match index_expr {
+                        Expr::Int(i) => i.to_string(),
+                        _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                    }),
                     Box::new(value),
                 ))
             } else {
@@ -710,27 +773,57 @@ impl Parser {
 
         Ok(Expr::List(list))
     }
-}
 
-impl Parser {
-    pub fn parse_tokens(&mut self, input: Lexer<'_, Token>) -> Vec<Result<Expr, ParseError>> {
-        let tokens = input.collect::<Vec<_>>();
-        let lines = self.split_into_lines(tokens);
-        let mut output = Vec::new();
+    pub fn parse_tokens(&mut self, tokens: logos::Lexer<'_, Token>) -> Vec<Result<Expr, ParseError>> {
+        println!("DEBUG [Parser]: Starting to parse tokens");
+        let tokens_vec = tokens.collect::<Result<Vec<_>, _>>().unwrap_or_default();
+        println!("DEBUG [Parser]: Collected tokens: {:?}", tokens_vec);
+        
+        let mut results = Vec::new();
+        let mut current_line_tokens = Vec::new();
         let mut current_line = 1;
 
-        for (line_tokens, positions) in lines {
-            self.setup_line_parsing(line_tokens, positions, current_line);
-
-            // Print tokens for debugging
-            //println!("Tokens for line {}: {:?}", current_line, self.tokens);
-
-            output.push(self.parse());
-
-            current_line += 1;
+        for token in tokens_vec.iter() {
+            match token {
+                Token::NEWLINE => {
+                    if !current_line_tokens.is_empty() {
+                        println!("DEBUG [Parser]: Processing line {}: {:?}", current_line, current_line_tokens);
+                        self.tokens = current_line_tokens.clone();
+                        self.pos = 0;
+                        let result = self.parse();
+                        println!("DEBUG [Parser]: Line {} parse result: {:?}", current_line, result);
+                        
+                        // Only add one error per line
+                        if result.is_err() && !results.last().map_or(false, |last: &Result<Expr, ParseError>| last.is_err()) {
+                            results.push(result);
+                        } else if result.is_ok() {
+                            results.push(result);
+                        }
+                    }
+                    current_line_tokens.clear();
+                    current_line += 1;
+                }
+                _ => current_line_tokens.push(token.clone()),
+            }
         }
 
-        output
+        if !current_line_tokens.is_empty() {
+            println!("DEBUG [Parser]: Processing final line {}: {:?}", current_line, current_line_tokens);
+            self.tokens = current_line_tokens;
+            self.pos = 0;
+            let result = self.parse();
+            println!("DEBUG [Parser]: Final line {} parse result: {:?}", current_line, result);
+            
+            // Only add one error per line
+            if result.is_err() && !results.last().map_or(false, |last: &Result<Expr, ParseError>| last.is_err()) {
+                results.push(result);
+            } else if result.is_ok() {
+                results.push(result);
+            }
+        }
+
+        println!("DEBUG [Parser]: All parsing complete, results: {:?}", results);
+        results
     }
 
     pub fn parse_tokens_fancy(&mut self, input: Lexer<'_, Token>) -> Vec<String> {

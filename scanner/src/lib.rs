@@ -4,22 +4,31 @@ use logos::Logos;
 pub mod grammar;
 
 pub fn tokenize(input: &str) -> logos::Lexer<'_, Token> {
+    println!("DEBUG [Scanner]: Starting tokenization of input: {}", input);
     let lexer = grammar::Token::lexer(input);
     lexer
 }
 
 pub fn tokenize_vector(input: &str) -> Vec<(String, grammar::Token)> {
+    println!("DEBUG [Scanner]: Starting vector tokenization");
     let mut lexer = grammar::Token::lexer(input);
     let mut tokens = Vec::new();
 
     while let Some(token) = lexer.next() {
         let slice = lexer.slice().to_string();
         match token {
-            Ok(tok) => tokens.push((slice, tok)),
-            Err(_) => tokens.push((slice, grammar::Token::ERR)),
+            Ok(tok) => {
+                println!("DEBUG [Scanner]: Generated token: {:?} from slice: {}", tok, slice);
+                tokens.push((slice, tok))
+            },
+            Err(_) => {
+                println!("DEBUG [Scanner]: Error generating token for slice: {}", slice);
+                tokens.push((slice, grammar::Token::ERR))
+            },
         }
     }
 
+    println!("DEBUG [Scanner]: Completed tokenization, total tokens: {}", tokens.len());
     tokens
 }
 
