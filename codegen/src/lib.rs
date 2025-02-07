@@ -62,11 +62,6 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, symbol_table:
     
     match (left, right) {
         (Expr::Int(n1), Expr::Int(n2)) => {
-            if n2 == &0 && (op == "*" || op == "/") {
-                instructions.push("ERROR".to_string());
-                return instructions;
-            }
-            
             let r0 = reg_alloc.get_next_reg();
             let r1 = reg_alloc.get_next_reg();
             let r2 = reg_alloc.get_next_reg();
@@ -95,11 +90,6 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, symbol_table:
             instructions.push(format!("ST @print R{}", r2));
         }
         (Expr::Float(n1), Expr::Int(n2)) => {
-            if n2 == &0 && (op == "*" || op == "/") {
-                instructions.push("ERROR".to_string());
-                return instructions;
-            }
-            
             let r0 = reg_alloc.get_next_reg();
             let r1 = reg_alloc.get_next_reg();
             let r2 = reg_alloc.get_next_reg();
@@ -213,12 +203,6 @@ fn generate_instructions(expr: &Expr, symbol_table: &mut HashMap<String, i64>, r
                             instructions.push(format!("FL.i R{} R{}", r1, r1));
                             instructions.push(format!("MUL.f R{} R{} R{}", r2, r0, r1));
                             instructions.push(format!("ST @print R{}", r2));
-                            if n2 == &0 {
-                                println!("DEBUG [Codegen]: Multiplication by zero detected");
-                                instructions.push(String::new());
-                                instructions.push("ERROR".to_string());
-                            }
-                            return instructions;
                         }
                         _ => {
                             println!("DEBUG [Codegen]: Invalid multiplication operands");

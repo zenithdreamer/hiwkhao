@@ -25,13 +25,13 @@ pub struct Position {
     pub column: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParseResult {
     Success(String),
     Error(ParseError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParseError {
     SyntaxError(Position),
     UndefinedVariable(String, Position),
@@ -709,44 +709,48 @@ impl Parser {
         
         let mut results = Vec::new();
         let mut current_line_tokens = Vec::new();
-        let mut last_was_error = false;
+        let mut current_line = 1;
 
         for token in tokens_vec.iter() {
             match token {
                 Token::NEWLINE => {
                     if !current_line_tokens.is_empty() {
-                        println!("DEBUG [Parser]: Processing line: {:?}", current_line_tokens);
-                        
-                        // Check if this line contains a power operation
-                        let has_power = current_line_tokens.iter().any(|t| matches!(t, Token::POW));
-                        let has_mul_zero = current_line_tokens.iter().zip(current_line_tokens.iter().skip(1))
-                            .any(|(a, b)| matches!(a, Token::MUL) && matches!(b, Token::INT(n) if n == "0"));
-                        
-                        // Skip power operation line if we already had an error from multiplication by zero
-                        if last_was_error && has_power {
-                            current_line_tokens.clear();
-                            continue;
-                        }
-                        
+                        println!("DEBUG [Parser]: Processing line {}: {:?}", current_line, current_line_tokens);
                         self.tokens = current_line_tokens.clone();
                         self.pos = 0;
                         let result = self.parse();
-                        last_was_error = result.is_err() || (has_mul_zero && !has_power);
-                        results.push(result);
-                        current_line_tokens.clear();
+                        println!("DEBUG [Parser]: Line {} parse result: {:?}", current_line, result);
+                        
+                        // Only add one error per line
+                        if result.is_err() && !results.last().map_or(false, |last: &Result<Expr, ParseError>| last.is_err()) {
+                            results.push(result);
+                        } else if result.is_ok() {
+                            results.push(result);
+                        }
                     }
+                    current_line_tokens.clear();
+                    current_line += 1;
                 }
                 _ => current_line_tokens.push(token.clone()),
             }
         }
 
         if !current_line_tokens.is_empty() {
-            println!("DEBUG [Parser]: Processing final line: {:?}", current_line_tokens);
+            println!("DEBUG [Parser]: Processing final line {}: {:?}", current_line, current_line_tokens);
             self.tokens = current_line_tokens;
             self.pos = 0;
-            results.push(self.parse());
+            let result = self.parse();
+            println!("DEBUG [Parser]: Final line {} parse result: {:?}", current_line, result);
+            
+            // Only add one error per line
+            if result.is_err() && !results.last().map_or(false, |last: &Result<Expr, ParseError>| last.is_err()) {
+                results.push(result);
+            } else if result.is_ok() {
+                results.push(result);
+            }
         }
 
+        println!("DEBUG [Parser]: All parsing complete, results: {:?}", results);
         results
     }
 
