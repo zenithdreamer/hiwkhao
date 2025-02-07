@@ -73,7 +73,11 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table
                 }
                 Expr::Float(n) => {
                     let n = if is_neg1 { -n } else { n };
-                    instructions.push(format!("LD R{} #{}", r0, n));
+                    if n.fract() == 0.0 {
+                        instructions.push(format!("LD R{} #{}.0", r0, n));
+                    } else {
+                        instructions.push(format!("LD R{} #{}", r0, n));
+                    }
                 }
                 _ => unreachable!()
             }
@@ -89,7 +93,11 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table
                 }
                 Expr::Float(n) => {
                     let n = if is_neg2 { -n } else { n };
-                    instructions.push(format!("LD R{} #{}", r1, n));
+                    if n.fract() == 0.0 {
+                        instructions.push(format!("LD R{} #{}.0", r1, n));
+                    } else {
+                        instructions.push(format!("LD R{} #{}", r1, n));
+                    }
                 }
                 _ => unreachable!()
             }

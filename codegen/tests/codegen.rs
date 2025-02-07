@@ -693,4 +693,100 @@ fn test_list_element_access_assignment() {
         "ST @x R0"
     ];
     assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_simple_subtraction() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Int(15)),
+        String::from("-"),
+        Box::new(Expr::Int(7))
+    );
+    let expected = vec![
+        "LD R0 #15",
+        "LD R1 #7",
+        "SUB.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_float_float_multiplication() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Float(2.5)),
+        String::from("*"),
+        Box::new(Expr::Float(3.0))
+    );
+    let expected = vec![
+        "LD R0 #2.5",
+        "LD R1 #3.0",
+        "MUL.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_float_float_addition() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Float(1.5)),
+        String::from("+"),
+        Box::new(Expr::Float(2.5))
+    );
+    let expected = vec![
+        "LD R0 #1.5",
+        "LD R1 #2.5",
+        "ADD.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_float_float_division() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Float(6.0)),
+        String::from("/"),
+        Box::new(Expr::Float(2.0))
+    );
+    let expected = vec![
+        "LD R0 #6.0",
+        "LD R1 #2.0",
+        "DIV.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_negative_number_subtraction() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Int(-10)),
+        String::from("-"),
+        Box::new(Expr::Int(-1))
+    );
+    let expected = vec![
+        "LD R0 #-10",
+        "LD R1 #-1",
+        "SUB.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_negative_number_subtraction_positive() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Int(-10)),
+        String::from("-"),
+        Box::new(Expr::Int(1))
+    );
+    let expected = vec![
+        "LD R0 #-10",
+        "LD R1 #1",
+        "SUB.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
 } 
