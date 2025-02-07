@@ -80,6 +80,7 @@ impl VM {
             "LD" => {
                 // LD R1 #123 (immediate)
                 // LD R1 @var (memory)
+                // LD R1 R2 (register value or memory address)
                 let dst_reg = parts[1].to_string();
                 let src = parts[2];
                 
@@ -114,6 +115,31 @@ impl VM {
                         let value = Value::Int(i32::from_le_bytes(bytes));
                         self.registers.insert(dst_reg, value);
                     }
+                } else {
+                    // Register value or memory address
+                    let src_reg = &src[..];
+                    if let Some(value) = self.registers.get(src_reg) {
+                        match value {
+                            Value::Int(addr) if *addr >= 0 => {
+                                // If the register contains a non-negative integer, treat it as a memory address
+                                let addr = *addr as usize;
+                                if addr + 3 < self.memory.len() {
+                                    let bytes = [
+                                        self.memory[addr],
+                                        self.memory[addr + 1],
+                                        self.memory[addr + 2],
+                                        self.memory[addr + 3],
+                                    ];
+                                    let value = Value::Int(i32::from_le_bytes(bytes));
+                                    self.registers.insert(dst_reg, value);
+                                }
+                            },
+                            _ => {
+                                // Otherwise, just copy the register value
+                                self.registers.insert(dst_reg, value.clone());
+                            }
+                        }
+                    }
                 }
             }
             "ST" => {
@@ -135,7 +161,19 @@ impl VM {
                     } else {
                         let addr = self.memory_map.get(var_name).copied().unwrap_or_else(|| {
                             let new_addr = self.next_addr;
-                            self.next_addr += 4;  // Increment by 4 for 32-bit values
+                            // Check if the source register contains a list size
+                            let size = if let Some(Value::Int(n)) = self.registers.get(src_reg) {
+                                (*n as usize) * 4  // Each element needs 4 bytes
+                            } else {
+                                4  // Default to 4 bytes for single values
+                            };
+                            self.next_addr += size;
+                            // Initialize memory to 0
+                            for i in new_addr..new_addr + size {
+                                if i < self.memory.len() {
+                                    self.memory[i] = 0;
+                                }
+                            }
                             self.memory_map.insert(var_name.to_string(), new_addr);
                             new_addr
                         });
@@ -154,6 +192,29 @@ impl VM {
                                 let bytes = f.to_le_bytes();
                                 if addr + bytes.len() <= self.memory.len() {
                                     self.memory[addr..addr + bytes.len()].copy_from_slice(&bytes);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Store to memory address in register
+                    if let Some(dst_reg_value) = self.registers.get(dst) {
+                        if let Value::Int(addr) = dst_reg_value {
+                            let addr = *addr as usize;
+                            if let Some(src_value) = self.registers.get(src_reg) {
+                                match src_value {
+                                    Value::Int(i) => {
+                                        let bytes = i.to_le_bytes();
+                                        if addr + bytes.len() <= self.memory.len() {
+                                            self.memory[addr..addr + bytes.len()].copy_from_slice(&bytes);
+                                        }
+                                    }
+                                    Value::Float(f) => {
+                                        let bytes = f.to_le_bytes();
+                                        if addr + bytes.len() <= self.memory.len() {
+                                            self.memory[addr..addr + bytes.len()].copy_from_slice(&bytes);
+                                        }
+                                    }
                                 }
                             }
                         }

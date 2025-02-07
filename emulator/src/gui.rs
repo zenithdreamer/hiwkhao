@@ -92,47 +92,35 @@ impl EmulatorGui {
             output.push_str("Address  | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F | ASCII\n");
             output.push_str("─────────┼─────────────────────────────────────────────────┼─────────────\n");
             
-            for i in (0..64).step_by(16) {
-                let addr = start_addr + i;
-                if addr >= memory.len() { break; }
-                
+            // Show all memory in 16-byte chunks
+            for i in (0..memory.len()).step_by(16) {
                 // Address
-                output.push_str(&format!("{:08X} │ ", addr));
+                output.push_str(&format!("{:08X} │ ", i));
                 
                 // Hex values
-                let mut ascii_part = String::new();
                 for j in 0..16 {
-                    if addr + j >= memory.len() {
-                        output.push_str("   ");
-                        ascii_part.push(' ');
+                    if i + j < memory.len() {
+                        output.push_str(&format!("{:02X} ", memory[i + j]));
                     } else {
-                        let byte = memory[addr + j];
-                        output.push_str(&format!("{:02X} ", byte));
-                        ascii_part.push(if byte.is_ascii_graphic() { byte as char } else { '.' });
+                        output.push_str("   ");
                     }
                 }
                 
                 // ASCII representation
                 output.push_str("│ ");
-                output.push_str(&ascii_part);
+                for j in 0..16 {
+                    if i + j < memory.len() {
+                        let byte = memory[i + j];
+                        if byte >= 32 && byte <= 126 {
+                            output.push(byte as char);
+                        } else {
+                            output.push('.');
+                        }
+                    } else {
+                        output.push(' ');
+                    }
+                }
                 output.push('\n');
-            }
-
-            // Add a section for 32-bit value interpretations
-            output.push_str("\n32-bit Values:\n");
-            output.push_str("Address  | Int32     Float32   \n");
-            output.push_str("─────────┼──────────────────────\n");
-            
-            for i in (0..64).step_by(4) {
-                let addr = start_addr + i;
-                if addr + 3 >= memory.len() { break; }
-                
-                let bytes: [u8; 4] = memory[addr..addr+4].try_into().unwrap();
-                let int_val = i32::from_le_bytes(bytes);
-                let float_val = f32::from_le_bytes(bytes);
-                
-                output.push_str(&format!("{:08X} │ {:10} {:10.3}\n", 
-                    addr, int_val, float_val));
             }
         }
         output
@@ -362,165 +350,104 @@ impl Application for EmulatorGui {
     }
 
     fn view(&self) -> Element<Message> {
-        let button_style = |label: &str| {
-            button(
-                text(label)
-                    .size(14)
-                    .style(theme::Text::Color(TEXT_COLOR))
-            )
-            .padding([6, 12])
-            .style(theme::Button::Secondary)
-        };
-
-        let controls = container(
-            row![
-                button_style("Step").on_press(Message::Step),
-                button_style("Run").on_press(Message::Run),
-                button_style("Continue").on_press(Message::Continue),
-                button_style("Reset").on_press(Message::Reset),
-                button_style("Clear Output").on_press(Message::ClearOutput),
-            ]
-            .spacing(8)
+        let memory_start = self.memory_start_addr.parse().unwrap_or(0);
+        let memory_view = scrollable(
+            text(self.format_memory_view(memory_start))
+                .font(iced::Font::MONOSPACE)
+                .size(14)
         )
-        .padding(10)
-        .style(theme::Container::Box);
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .style(theme::Scrollable::default());
 
-        // Instructions view with auto-scroll
-        let (instruction_rows, _) = self.instruction_rows();
-        let instructions_content = column(instruction_rows)
-            .spacing(2)
-            .width(Length::Fill);
-
-        let instructions_scroll = scrollable(
-            container(instructions_content)
-                .width(Length::Fill)
-                .style(theme::Container::Box)
+        let (instruction_rows, current_line_idx) = self.instruction_rows();
+        let instructions = scrollable(
+            column(instruction_rows).spacing(0)
         )
         .id(scrollable::Id::new("instructions"))
-        .height(Length::Fill);
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .style(theme::Scrollable::default());
 
-        let instructions_view = container(
+        let registers_view = container(
+            scrollable(
+                text(self.format_registers())
+                    .font(iced::Font::MONOSPACE)
+                    .size(14)
+            )
+            .height(Length::Fill)
+            .style(theme::Scrollable::default())
+        )
+        .padding(10)
+        .height(Length::Fill)
+        .style(theme::Container::Custom(Box::new(ContentContainer)));
+
+        let output_view = container(
+            scrollable(
+                text(self.output.join("\n"))
+                    .font(iced::Font::MONOSPACE)
+                    .size(14)
+            )
+            .height(Length::Fill)
+            .style(theme::Scrollable::default())
+        )
+        .padding(10)
+        .height(Length::Fill)
+        .style(theme::Container::Custom(Box::new(ContentContainer)));
+
+        let content = row![
+            // Left panel - Instructions
             column![
-                text("Instructions")
-                    .size(16)
-                    .style(theme::Text::Color(TEXT_COLOR)),
-                container(instructions_scroll)
-                    .style(theme::Container::Box)
-                    .padding(10)
+                row![
+                    button("Step").on_press(Message::Step).style(theme::Button::Secondary),
+                    button("Run").on_press(Message::Run).style(theme::Button::Secondary),
+                    button("Reset").on_press(Message::Reset).style(theme::Button::Secondary),
+                    button("Continue").on_press(Message::Continue).style(theme::Button::Secondary)
+                ].spacing(10),
+                text("Instructions:").size(16),
+                instructions
             ]
             .spacing(10)
-        )
-        .style(theme::Container::Box)
-        .padding(15)
-        .height(Length::FillPortion(2));
+            .width(Length::FillPortion(2)),
 
-        // Memory view
-        let memory_view = container(
+            // Right panel - Memory, Registers, Output
             column![
-                text("Memory Viewer")
-                    .size(16)
-                    .style(theme::Text::Color(TEXT_COLOR)),
-                text_input(
-                    "Memory Address (hex)",
-                    &self.memory_start_addr
-                )
-                .on_input(Message::UpdateMemoryStart)
-                .padding(8)
-                .size(14),
-                container(
-                    scrollable(
-                        text(&self.format_memory_view(
-                            usize::from_str_radix(&self.memory_start_addr, 16).unwrap_or(0)
-                        ))
-                        .size(13)
-                        .font(iced::Font::MONOSPACE)
-                        .style(theme::Text::Color(TEXT_COLOR))
-                    )
-                )
-                .style(theme::Container::Box)
-                .padding(10)
+                // Memory section
+                column![
+                    text("Memory:").size(16),
+                    memory_view
+                ]
+                .spacing(2)
+                .height(Length::FillPortion(2)),
+
+                // Registers section
+                column![
+                    text("Registers:").size(16),
+                    registers_view
+                ]
+                .spacing(2)
+                .height(Length::FillPortion(1)),
+
+                // Output section
+                column![
+                    text("Output:").size(16),
+                    output_view
+                ]
+                .spacing(2)
+                .height(Length::FillPortion(1))
             ]
             .spacing(10)
-        )
-        .style(theme::Container::Box)
-        .padding(15)
-        .height(Length::FillPortion(3));
-
-        // Right panel
-        let right_panel = column![
-            // Register view
-            container(
-                column![
-                    text("Registers")
-                        .size(16)
-                        .style(theme::Text::Color(TEXT_COLOR)),
-                    container(
-                        scrollable(
-                            text(&self.format_registers())
-                                .size(14)
-                                .style(theme::Text::Color(TEXT_COLOR))
-                        )
-                    )
-                    .style(theme::Container::Box)
-                    .padding(10)
-                ]
-                .spacing(10)
-            )
-            .style(theme::Container::Box)
-            .padding(15)
-            .height(Length::FillPortion(1)),
-
-            // Output view
-            container(
-                column![
-                    text("Program Output")
-                        .size(16)
-                        .style(theme::Text::Color(TEXT_COLOR)),
-                    container(
-                        scrollable(
-                            column(
-                                self.output.iter().map(|line| {
-                                    text(line)
-                                        .size(14)
-                                        .style(theme::Text::Color(TEXT_COLOR))
-                                        .into()
-                                }).collect()
-                            )
-                            .spacing(4)
-                        )
-                    )
-                    .style(theme::Container::Box)
-                    .padding(10)
-                ]
-                .spacing(10)
-            )
-            .style(theme::Container::Box)
-            .padding(15)
-            .height(Length::FillPortion(2))
+            .width(Length::FillPortion(3))
         ]
-        .width(Length::FillPortion(2));
+        .spacing(20)
+        .padding(20);
 
-        container(
-            column![
-                controls,
-                container(
-                    row![
-                        column![
-                            instructions_view,
-                            memory_view,
-                        ]
-                        .width(Length::FillPortion(3)),
-                        right_panel,
-                    ]
-                    .spacing(15)
-                )
-                .padding(15)
-            ]
-            .spacing(0)
-        )
-        .style(theme::Container::Box)
-        .padding(15)
-        .into()
+        container(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .padding(20)
+            .style(theme::Container::Custom(Box::new(CustomContainer)))
+            .into()
     }
 
     fn theme(&self) -> Self::Theme {
@@ -530,6 +457,6 @@ impl Application for EmulatorGui {
 
 pub fn run_gui(vm: Arc<Mutex<VM>>) -> iced::Result {
     let mut settings = Settings::with_flags(vm);
-    settings.window.size = (1200, 800);
+    settings.window.size = (1600, 1000);  // Increased window size
     EmulatorGui::run(settings)
 } 

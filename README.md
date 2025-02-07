@@ -45,9 +45,24 @@ To generate code from an input file, use:
 cargo run -p codegen sample.txt
 ```
 
+## Running Emulator
+
+To run the emulator with the generated code, use:
+
+```sh
+cargo run -p emulator hiwkhao.asm
+```
+
+or in GUI mode:
+
+```sh
+cargo run -p emulator hiwkhao.asm --gui
+```
+
 The generated code will be saved in `hiwkhao.asm`.
 
 ## Running Tests
+
 
 To run all test cases for the parser:
 

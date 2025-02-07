@@ -291,6 +291,50 @@ fn generate_binary_arithmetic(left: &Expr, right: &Expr, op: &str, _symbol_table
             instructions.push(format!("{} R{} R{} R{}", op_code, r2, r0, r1));
             instructions.push(format!("ST @print R{}", r2));
         }
+        (Expr::ListAccess(list_name1, idx1), Expr::ListAccess(list_name2, idx2)) => {
+            let r0 = reg_alloc.get_next_reg();
+            let r1 = reg_alloc.get_next_reg();
+            let r2 = reg_alloc.get_next_reg();
+            let r3 = reg_alloc.get_next_reg();
+            let r4 = reg_alloc.get_next_reg();
+            let r5 = reg_alloc.get_next_reg();
+            let r6 = reg_alloc.get_next_reg();
+            let r7 = reg_alloc.get_next_reg();
+
+            let idx1_value = if let Expr::Int(n) = **idx1 { n } else { panic!("Expected integer index") };
+            let idx2_value = if let Expr::Int(n) = **idx2 { n } else { panic!("Expected integer index") };
+
+            // Load first list element
+            instructions.push(format!("LD R{} @{}", r0, list_name1));
+            instructions.push(format!("LD R{} #{}", r1, idx1_value));
+            instructions.push(format!("LD R{} #4", r2));
+            instructions.push(format!("MUL.i R{} R{} R{}", r3, r1, r2));
+            instructions.push(format!("ADD.i R{} R{} R{}", r4, r0, r3));
+            instructions.push(format!("LD R{} R{}", r5, r4));
+
+            // Load second list element
+            instructions.push(format!("LD R{} @{}", r0, list_name2));
+            instructions.push(format!("LD R{} #{}", r1, idx2_value));
+            instructions.push(format!("LD R{} #4", r2));
+            instructions.push(format!("MUL.i R{} R{} R{}", r3, r1, r2));
+            instructions.push(format!("ADD.i R{} R{} R{}", r4, r0, r3));
+            instructions.push(format!("LD R{} R{}", r6, r4));
+
+            // Perform the operation
+            let op_code = match op {
+                "+" => "ADD.i",
+                "-" => "SUB.i",
+                "*" => "MUL.i",
+                "/" => "DIV.i",
+                _ => {
+                    instructions.push("ERROR".to_string());
+                    return instructions;
+                }
+            };
+
+            instructions.push(format!("{} R{} R{} R{}", op_code, r7, r5, r6));
+            instructions.push(format!("ST @print R{}", r7));
+        }
         _ => instructions.push("ERROR".to_string()),
     }
     
