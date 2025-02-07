@@ -66,6 +66,38 @@ fn test_variable_multiplication() {
 }
 
 #[test]
+fn test_float_variable_multiplication() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Variable(String::from("z"))),
+        String::from("*"),
+        Box::new(Expr::Int(2))
+    );
+    let expected = vec![
+        "LD R0 #2",
+        "LD R1 @z",
+        "MUL.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_variable_addition() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Variable(String::from("y"))),
+        String::from("+"),
+        Box::new(Expr::Int(5))
+    );
+    let expected = vec![
+        "LD R0 #5",
+        "LD R1 @y",
+        "ADD.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
 fn test_invalid_operation() {
     let expr = Expr::BinaryOp(
         Box::new(Expr::Int(5)),
@@ -238,6 +270,45 @@ fn test_division_by_zero() {
 }
 
 #[test]
+fn test_division_with_negative() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Int(1)),
+        String::from("/"),
+        Box::new(Expr::UnaryOp(
+            String::from("-"),
+            Box::new(Expr::Int(1))
+        ))
+    );
+    let expected = vec![
+        "LD R0 #1",
+        "LD R1 #-1",
+        "DIV.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_division_with_negative_float() {
+    let expr = Expr::BinaryOp(
+        Box::new(Expr::Int(1)),
+        String::from("/"),
+        Box::new(Expr::UnaryOp(
+            String::from("-"),
+            Box::new(Expr::Float(1.1))
+        ))
+    );
+    let expected = vec![
+        "LD R0 #1",
+        "FL.i R0 R0",
+        "LD R1 #-1.1",
+        "DIV.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
 fn test_full_stack() {
     let input = "23+8
 2.5 * 0
@@ -299,7 +370,7 @@ x[1]";
         "ERROR",
         "",
         // x!=5
-        "LD R0 5",
+        "LD R0 #5",
         "LD R1 @x",
         "FL.i R0 R0",
         "FL.i R1 R1",
@@ -331,4 +402,115 @@ x[1]";
     ];
 
     assert_eq!(result, expected);
+}
+
+#[test]
+fn test_float_variable_assignment() {
+    let expr = Expr::Assignment(
+        String::from("z"),
+        Box::new(Expr::Float(2.5))
+    );
+    let expected = vec![
+        "LD R0 #2.5",
+        "ST @z R0"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_greater_than_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from(">"),
+        Box::new(Expr::Int(0))
+    );
+    let expected = vec![
+        "LD R0 #0",
+        "LD R1 @x",
+        "GT.i R2 R1 R0",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_less_than_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from("<"),
+        Box::new(Expr::Int(10))
+    );
+    let expected = vec![
+        "LD R0 #10",
+        "LD R1 @x",
+        "LT.i R2 R1 R0",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_equal_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from("=="),
+        Box::new(Expr::Int(5))
+    );
+    let expected = vec![
+        "LD R0 #5",
+        "LD R1 @x",
+        "EQ.i R2 R1 R0",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_not_equal_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from("!="),
+        Box::new(Expr::Int(6))
+    );
+    let expected = vec![
+        "LD R0 #6",
+        "LD R1 @x",
+        "FL.i R0 R0",
+        "FL.i R1 R1",
+        "NE.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_greater_than_equal_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from(">="),
+        Box::new(Expr::Variable(String::from("y")))
+    );
+    let expected = vec![
+        "LD R0 @x",
+        "LD R1 @y",
+        "GE.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_less_than_equal_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from("<="),
+        Box::new(Expr::Variable(String::from("y")))
+    );
+    let expected = vec![
+        "LD R0 @x",
+        "LD R1 @y",
+        "LE.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
 } 
