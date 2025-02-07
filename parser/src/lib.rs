@@ -53,7 +53,17 @@ impl Expr {
                 format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
             }
             Expr::UnaryOp(op, expr) => format!("({}{}", op, expr.to_string() + ")"),
-            Expr::Assignment(var, expr) => format!("({}={})", var, expr.to_string()),
+            Expr::Assignment(var, expr) => {
+                if var.contains('[') {
+                    // Extract the variable name and index
+                    let parts: Vec<&str> = var.split('[').collect();
+                    let var_name = parts[0];
+                    let index = parts[1].trim_end_matches(']');
+                    format!("({}[({})]={}", var_name, index, expr.to_string() + ")")
+                } else {
+                    format!("({}={})", var, expr.to_string())
+                }
+            }
             Expr::Boolean(left, op, right) => {
                 format!("({}{}{}", left.to_string(), op, right.to_string() + ")")
             }

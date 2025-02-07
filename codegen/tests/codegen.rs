@@ -114,7 +114,10 @@ fn test_undefined_variable() {
         String::from("x"),
         Box::new(Expr::Variable(String::from("y")))
     );
-    let expected = vec!["ERROR"];
+    let expected = vec![
+        "LD R0 @y",
+        "ST @x R0"
+    ];
     assert_eq!(codegen::generate_assembly(&expr), expected);
 }
 
@@ -328,7 +331,7 @@ x[1]";
     for expr in parsed_results {
         match expr {
             Ok(expr) => {
-                let mut asm = codegen::generate_assembly(&expr);
+                let asm = codegen::generate_assembly(&expr);
                 result.extend(asm);
                 result.push(String::new());
             }
@@ -370,8 +373,8 @@ x[1]";
         "ERROR",
         "",
         // x!=5
-        "LD R0 #5",
-        "LD R1 @x",
+        "LD R0 @x",
+        "LD R1 #5",
         "FL.i R0 R0",
         "FL.i R1 R1",
         "NE.f R2 R0 R1",
@@ -425,9 +428,9 @@ fn test_greater_than_comparison() {
         Box::new(Expr::Int(0))
     );
     let expected = vec![
-        "LD R0 #0",
-        "LD R1 @x",
-        "GT.i R2 R1 R0",
+        "LD R0 @x",
+        "LD R1 #0",
+        "GT.i R2 R0 R1",
         "ST @print R2"
     ];
     assert_eq!(codegen::generate_assembly(&expr), expected);
@@ -441,9 +444,9 @@ fn test_less_than_comparison() {
         Box::new(Expr::Int(10))
     );
     let expected = vec![
-        "LD R0 #10",
-        "LD R1 @x",
-        "LT.i R2 R1 R0",
+        "LD R0 @x",
+        "LD R1 #10",
+        "LT.i R2 R0 R1",
         "ST @print R2"
     ];
     assert_eq!(codegen::generate_assembly(&expr), expected);
@@ -457,9 +460,9 @@ fn test_equal_comparison() {
         Box::new(Expr::Int(5))
     );
     let expected = vec![
-        "LD R0 #5",
-        "LD R1 @x",
-        "EQ.i R2 R1 R0",
+        "LD R0 @x",
+        "LD R1 #5",
+        "EQ.i R2 R0 R1",
         "ST @print R2"
     ];
     assert_eq!(codegen::generate_assembly(&expr), expected);
@@ -473,8 +476,8 @@ fn test_not_equal_comparison() {
         Box::new(Expr::Int(6))
     );
     let expected = vec![
-        "LD R0 #6",
-        "LD R1 @x",
+        "LD R0 @x",
+        "LD R1 #6",
         "FL.i R0 R0",
         "FL.i R1 R1",
         "NE.f R2 R0 R1",
@@ -550,6 +553,144 @@ fn test_list_element_assignment_float() {
         "MUL.i R4 R2 R3",
         "ADD.i R2 R1 R4",
         "ST R2 R0"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_list_element_assignment_from_list() {
+    let expr = Expr::Assignment(
+        String::from("mylist[0]"),
+        Box::new(Expr::ListAccess(
+            String::from("testa"),
+            Box::new(Expr::Int(1))
+        ))
+    );
+    let expected = vec![
+        "LD R0 @testa",
+        "LD R1 #1",
+        "LD R2 #4",
+        "MUL.i R3 R1 R2",
+        "ADD.i R4 R0 R3",
+        "LD R5 R4",
+        "LD R0 @mylist",
+        "LD R1 #0",
+        "LD R2 #4",
+        "MUL.i R3 R1 R2",
+        "ADD.i R4 R0 R3",
+        "ST R4 R5"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_negative_variable_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::UnaryOp(
+            String::from("-"),
+            Box::new(Expr::Variable(String::from("x")))
+        )),
+        String::from(">="),
+        Box::new(Expr::Variable(String::from("y")))
+    );
+    let expected = vec![
+        "LD R0 @x",
+        "NEG.i R0 R0",
+        "LD R1 @y",
+        "GE.i R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_negative_float_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::UnaryOp(
+            String::from("-"),
+            Box::new(Expr::Float(10.5))
+        )),
+        String::from("<="),
+        Box::new(Expr::Int(5))
+    );
+    let expected = vec![
+        "LD R0 #-10.5",
+        "LD R1 #5",
+        "FL.i R1 R1",
+        "LE.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_float_int_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Int(2)),
+        String::from(">="),
+        Box::new(Expr::Float(1.5))
+    );
+    let expected = vec![
+        "LD R0 #2",
+        "FL.i R0 R0",
+        "LD R1 #1.5",
+        "GE.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_float_variable_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Variable(String::from("x"))),
+        String::from(">="),
+        Box::new(Expr::Float(2.5))
+    );
+    let expected = vec![
+        "LD R0 @x",
+        "FL.i R0 R0",
+        "LD R1 #2.5",
+        "GE.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_float_equality_comparison() {
+    let expr = Expr::Boolean(
+        Box::new(Expr::Float(2.5)),
+        String::from("=="),
+        Box::new(Expr::Variable(String::from("x")))
+    );
+    let expected = vec![
+        "LD R0 #2.5",
+        "LD R1 @x",
+        "FL.i R1 R1",
+        "EQ.f R2 R0 R1",
+        "ST @print R2"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_list_element_access_assignment() {
+    let expr = Expr::Assignment(
+        String::from("x"),
+        Box::new(Expr::ListAccess(
+            String::from("mylist"),
+            Box::new(Expr::Int(1))
+        ))
+    );
+    let expected = vec![
+        "LD R0 @mylist",
+        "LD R1 #1",
+        "LD R2 #4",
+        "MUL.i R3 R1 R2",
+        "ADD.i R4 R0 R3",
+        "LD R0 R4",
+        "ST @x R0"
     ];
     assert_eq!(codegen::generate_assembly(&expr), expected);
 } 
