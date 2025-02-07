@@ -302,52 +302,153 @@ fn generate_instructions(expr: &Expr, symbol_table: &mut HashMap<String, i64>, r
             }
         }
         Expr::Assignment(var, value) => {
-            match value.as_ref() {
-                Expr::Int(n) => {
-                    let r0 = reg_alloc.get_next_reg();
-                    instructions.push(format!("LD R{} #{}", r0, n));
-                    instructions.push(format!("ST @{} R{}", var, r0));
-                    symbol_table.insert(var.clone(), *n);
+            // Check if this is a list element assignment
+            if var.contains('[') && var.contains(']') {
+                let parts: Vec<&str> = var.split('[').collect();
+                let list_name = parts[0];
+                let index = parts[1].trim_end_matches(']').parse::<i64>().unwrap();
+                
+                match value.as_ref() {
+                    Expr::Int(n) => {
+                        let r0 = reg_alloc.get_next_reg();
+                        let r1 = reg_alloc.get_next_reg();
+                        let r2 = reg_alloc.get_next_reg();
+                        let r3 = reg_alloc.get_next_reg();
+                        let r4 = reg_alloc.get_next_reg();
+                        
+                        instructions.push(format!("LD R{} #{}", r0, n));
+                        instructions.push(format!("LD R{} @{}", r1, list_name));
+                        instructions.push(format!("LD R{} #{}", r2, index));
+                        instructions.push(format!("LD R{} #4", r3));
+                        instructions.push(format!("MUL.i R{} R{} R{}", r4, r2, r3));
+                        instructions.push(format!("ADD.i R{} R{} R{}", r2, r1, r4));
+                        instructions.push(format!("ST R{} R{}", r2, r0));
+                    }
+                    Expr::Float(n) => {
+                        let r0 = reg_alloc.get_next_reg();
+                        let r1 = reg_alloc.get_next_reg();
+                        let r2 = reg_alloc.get_next_reg();
+                        let r3 = reg_alloc.get_next_reg();
+                        let r4 = reg_alloc.get_next_reg();
+                        
+                        instructions.push(format!("LD R{} #{}", r0, n));
+                        instructions.push(format!("LD R{} @{}", r1, list_name));
+                        instructions.push(format!("LD R{} #{}", r2, index));
+                        instructions.push(format!("LD R{} #4", r3));
+                        instructions.push(format!("MUL.i R{} R{} R{}", r4, r2, r3));
+                        instructions.push(format!("ADD.i R{} R{} R{}", r2, r1, r4));
+                        instructions.push(format!("ST R{} R{}", r2, r0));
+                    }
+                    Expr::UnaryOp(op, expr) => {
+                        match (op.as_str(), expr.as_ref()) {
+                            ("-", Expr::Int(n)) => {
+                                let r0 = reg_alloc.get_next_reg();
+                                let r1 = reg_alloc.get_next_reg();
+                                let r2 = reg_alloc.get_next_reg();
+                                let r3 = reg_alloc.get_next_reg();
+                                let r4 = reg_alloc.get_next_reg();
+                                
+                                instructions.push(format!("LD R{} #{}", r0, -n));
+                                instructions.push(format!("LD R{} @{}", r1, list_name));
+                                instructions.push(format!("LD R{} #{}", r2, index));
+                                instructions.push(format!("LD R{} #4", r3));
+                                instructions.push(format!("MUL.i R{} R{} R{}", r4, r2, r3));
+                                instructions.push(format!("ADD.i R{} R{} R{}", r2, r1, r4));
+                                instructions.push(format!("ST R{} R{}", r2, r0));
+                            }
+                            ("-", Expr::Float(n)) => {
+                                let r0 = reg_alloc.get_next_reg();
+                                let r1 = reg_alloc.get_next_reg();
+                                let r2 = reg_alloc.get_next_reg();
+                                let r3 = reg_alloc.get_next_reg();
+                                let r4 = reg_alloc.get_next_reg();
+                                
+                                instructions.push(format!("LD R{} #{}", r0, -n));
+                                instructions.push(format!("LD R{} @{}", r1, list_name));
+                                instructions.push(format!("LD R{} #{}", r2, index));
+                                instructions.push(format!("LD R{} #4", r3));
+                                instructions.push(format!("MUL.i R{} R{} R{}", r4, r2, r3));
+                                instructions.push(format!("ADD.i R{} R{} R{}", r2, r1, r4));
+                                instructions.push(format!("ST R{} R{}", r2, r0));
+                            }
+                            _ => instructions.push("ERROR".to_string())
+                        }
+                    }
+                    _ => instructions.push("ERROR".to_string())
                 }
-                Expr::Float(n) => {
-                    let r0 = reg_alloc.get_next_reg();
-                    instructions.push(format!("LD R{} #{}", r0, n));
-                    instructions.push(format!("ST @{} R{}", var, r0));
-                    symbol_table.insert(var.clone(), n.to_bits() as i64);
+            } else {
+                match value.as_ref() {
+                    Expr::Int(n) => {
+                        let r0 = reg_alloc.get_next_reg();
+                        instructions.push(format!("LD R{} #{}", r0, n));
+                        instructions.push(format!("ST @{} R{}", var, r0));
+                        symbol_table.insert(var.clone(), *n);
+                    }
+                    Expr::Float(n) => {
+                        let r0 = reg_alloc.get_next_reg();
+                        instructions.push(format!("LD R{} #{}", r0, n));
+                        instructions.push(format!("ST @{} R{}", var, r0));
+                        symbol_table.insert(var.clone(), n.to_bits() as i64);
+                    }
+                    Expr::Variable(name) => {
+                        let r0 = reg_alloc.get_next_reg();
+                        instructions.push(format!("LD R{} @{}", r0, name));
+                        instructions.push(format!("ST @{} R{}", var, r0));
+                    }
+                    Expr::ListAccess(list_name, index) => {
+                        match index.as_ref() {
+                            Expr::Int(idx) => {
+                                let r0 = reg_alloc.get_next_reg();
+                                let r1 = reg_alloc.get_next_reg();
+                                let r2 = reg_alloc.get_next_reg();
+                                let r3 = reg_alloc.get_next_reg();
+                                let r4 = reg_alloc.get_next_reg();
+                                
+                                instructions.push(format!("LD R{} @{}", r0, list_name));
+                                instructions.push(format!("LD R{} #{}", r1, idx));
+                                instructions.push(format!("LD R{} #4", r2));
+                                instructions.push(format!("MUL.i R{} R{} R{}", r3, r1, r2));
+                                instructions.push(format!("ADD.i R{} R{} R{}", r4, r0, r3));
+                                instructions.push(format!("LD R0 R{}", r4));
+                                instructions.push(format!("ST @{} R0", var));
+                            }
+                            _ => instructions.push("ERROR".to_string())
+                        }
+                    }
+                    Expr::List(_) => {
+                        println!("DEBUG [Codegen]: Processing List assignment");
+                        let r0 = reg_alloc.get_next_reg();
+                        let r1 = reg_alloc.get_next_reg();
+                        let r2 = reg_alloc.get_next_reg();
+                        let r3 = reg_alloc.get_next_reg();
+                        let r4 = reg_alloc.get_next_reg();
+                        let r5 = reg_alloc.get_next_reg();
+                        
+                        println!("DEBUG [Codegen]: List assignment registers: r0={}, r1={}, r2={}, r3={}, r4={}, r5={}", r0, r1, r2, r3, r4, r5);
+                        
+                        // Initialize list elements to 0
+                        instructions.push(format!("LD R{} #0", r0));
+                        instructions.push(format!("LD R{} @{}", r1, var));
+                        
+                        // Set first element (index 0)
+                        instructions.push(format!("LD R{} #0", r2));
+                        instructions.push(format!("LD R{} #4", r3));
+                        instructions.push(format!("MUL.i R{} R{} R{}", r4, r2, r3));
+                        instructions.push(format!("ADD.i R{} R{} R{}", r5, r1, r4));
+                        instructions.push(format!("ST R{} R{}", r5, r0));
+                        
+                        // Set second element (index 1)
+                        instructions.push(format!("LD R{} #1", r2));
+                        instructions.push(format!("LD R{} #4", r3));
+                        instructions.push(format!("MUL.i R{} R{} R{}", r4, r2, r3));
+                        instructions.push(format!("ADD.i R{} R{} R{}", r5, r1, r4));
+                        instructions.push(format!("ST R{} R{}", r5, r0));
+                        
+                        println!("DEBUG [Codegen]: List assignment instructions generated: {:?}", instructions);
+                        symbol_table.insert(var.clone(), 0);
+                    }
+                    _ => instructions.push("ERROR".to_string())
                 }
-                Expr::List(_) => {
-                    println!("DEBUG [Codegen]: Processing List assignment");
-                    let r0 = reg_alloc.get_next_reg();
-                    let r1 = reg_alloc.get_next_reg();
-                    let r2 = reg_alloc.get_next_reg();
-                    let r3 = reg_alloc.get_next_reg();
-                    let r4 = reg_alloc.get_next_reg();
-                    let r5 = reg_alloc.get_next_reg();
-                    
-                    println!("DEBUG [Codegen]: List assignment registers: r0={}, r1={}, r2={}, r3={}, r4={}, r5={}", r0, r1, r2, r3, r4, r5);
-                    
-                    // Initialize list elements to 0
-                    instructions.push(format!("LD R{} #0", r0));
-                    instructions.push(format!("LD R{} @{}", r1, var));
-                    
-                    // Set first element (index 0)
-                    instructions.push(format!("LD R{} #0", r2));
-                    instructions.push(format!("LD R{} #4", r3));
-                    instructions.push(format!("MUL.i R{} R{} R{}", r4, r2, r3));
-                    instructions.push(format!("ADD.i R{} R{} R{}", r5, r1, r4));
-                    instructions.push(format!("ST R{} R{}", r5, r0));
-                    
-                    // Set second element (index 1)
-                    instructions.push(format!("LD R{} #1", r2));
-                    instructions.push(format!("LD R{} #4", r3));
-                    instructions.push(format!("MUL.i R{} R{} R{}", r4, r2, r3));
-                    instructions.push(format!("ADD.i R{} R{} R{}", r5, r1, r4));
-                    instructions.push(format!("ST R{} R{}", r5, r0));
-                    
-                    println!("DEBUG [Codegen]: List assignment instructions generated: {:?}", instructions);
-                    symbol_table.insert(var.clone(), 0);
-                }
-                _ => instructions.push("ERROR".to_string())
             }
         }
         Expr::Boolean(left, op, right) => {

@@ -513,4 +513,43 @@ fn test_less_than_equal_comparison() {
         "ST @print R2"
     ];
     assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_list_element_assignment_negative() {
+    let expr = Expr::Assignment(
+        String::from("mylist[0]"),
+        Box::new(Expr::UnaryOp(
+            String::from("-"),
+            Box::new(Expr::Int(10))
+        ))
+    );
+    let expected = vec![
+        "LD R0 #-10",
+        "LD R1 @mylist",
+        "LD R2 #0",
+        "LD R3 #4",
+        "MUL.i R4 R2 R3",
+        "ADD.i R2 R1 R4",
+        "ST R2 R0"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
+}
+
+#[test]
+fn test_list_element_assignment_float() {
+    let expr = Expr::Assignment(
+        String::from("mylist[1]"),
+        Box::new(Expr::Float(10.5))
+    );
+    let expected = vec![
+        "LD R0 #10.5",
+        "LD R1 @mylist",
+        "LD R2 #1",
+        "LD R3 #4",
+        "MUL.i R4 R2 R3",
+        "ADD.i R2 R1 R4",
+        "ST R2 R0"
+    ];
+    assert_eq!(codegen::generate_assembly(&expr), expected);
 } 

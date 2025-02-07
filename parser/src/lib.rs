@@ -166,9 +166,71 @@ impl Parser {
     fn parse_calculation(&mut self) -> Result<Expr, ParseError> {
         println!("DEBUG [Parser]: Starting parse_calculation");
         match self.peek() {
-            Some(Token::VAR(_)) if self.tokens.get(self.pos + 1) == Some(&Token::ASSIGN) => {
-                println!("DEBUG [Parser]: Found assignment expression");
-                self.parse_assignment()
+            Some(Token::VAR(_)) => {
+                // Look ahead to see if this is a list element assignment
+                let var_name = match self.peek() {
+                    Some(Token::VAR(name)) => name.clone(),
+                    _ => unreachable!(),
+                };
+                
+                // Save current position in case we need to backtrack
+                let current_pos = self.pos;
+                
+                // Try to parse as list element assignment
+                self.consume(); // Consume VAR
+                if let Some(Token::LBRACKET) = self.peek() {
+                    self.consume(); // Consume LBRACKET
+                    if let Some(Token::INT(_)) = self.peek() {
+                        let index_expr = self.parse_expression()?;
+                        self.expect(Token::RBRACKET)?;
+                        if let Some(Token::ASSIGN) = self.peek() {
+                            self.consume(); // Consume ASSIGN
+                            let value = self.parse_expression()?;
+                            return Ok(Expr::Assignment(
+                                format!("{}[{}]", var_name, match index_expr {
+                                    Expr::Int(i) => i.to_string(),
+                                    _ => return Err(ParseError::SyntaxError(self.get_current_position())),
+                                }),
+                                Box::new(value),
+                            ));
+                        }
+                    }
+                }
+                
+                // If not a list element assignment, reset position and try normal assignment
+                self.pos = current_pos;
+                if self.tokens.get(self.pos + 1) == Some(&Token::ASSIGN) {
+                    println!("DEBUG [Parser]: Found assignment expression");
+                    self.parse_assignment()
+                } else {
+                    let expr = self.parse_boolean()?;
+                    if self.pos < self.tokens.len() {
+                        match self.tokens[self.pos] {
+                            Token::EQ | Token::NE | Token::GT | Token::LT | Token::GE | Token::LE => {
+                                println!("DEBUG [Parser]: Found comparison operator");
+                                let op = match self.consume().unwrap() {
+                                    Token::EQ => "==",
+                                    Token::NE => "!=",
+                                    Token::GT => ">",
+                                    Token::LT => "<",
+                                    Token::GE => ">=",
+                                    Token::LE => "<=",
+                                    _ => unreachable!(),
+                                };
+                                println!("DEBUG [Parser]: Comparison operator: {}", op);
+                                let right = self.parse_expression()?;
+                                Ok(Expr::Boolean(
+                                    Box::new(expr),
+                                    op.to_string(),
+                                    Box::new(right),
+                                ))
+                            }
+                            _ => Ok(expr),
+                        }
+                    } else {
+                        Ok(expr)
+                    }
+                }
             }
             _ => {
                 let expr = self.parse_boolean()?;
