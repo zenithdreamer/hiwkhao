@@ -47,6 +47,7 @@ cargo run -p codegen sample.txt
 
 ## Running Emulator
 
+The emulator is unfinished.
 To run the emulator with the generated code, use:
 
 ```sh

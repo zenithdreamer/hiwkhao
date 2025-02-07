@@ -387,10 +387,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "codegen"
+name = "codegen_lib"
 version = "0.1.0"
 dependencies = [
- "parser",
+ "parser_lib",
  "scanner",
 ]
 
@@ -1026,7 +1026,8 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 name = "hiwkhao"
 version = "0.1.0"
 dependencies = [
- "parser",
+ "codegen_lib",
+ "parser_lib",
  "scanner",
 ]
 
@@ -1937,7 +1938,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "parser"
+name = "parser_lib"
 version = "0.1.0"
 dependencies = [
  "csv",

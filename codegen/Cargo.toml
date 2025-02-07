@@ -1,12 +1,15 @@
 [package]
-name = "codegen"
+name = "codegen_lib"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "codegen"
 path = "src/lib.rs"
 
+[[bin]]
+name = "codegen"
+path = "src/main.rs"
+
 [dependencies]
-parser = { path = "../parser" }
+parser_lib = { path = "../parser" }
 scanner = { path = "../scanner" }
