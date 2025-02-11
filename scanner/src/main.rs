@@ -1,4 +1,4 @@
-use scanner_lib;
+use scanner;
 
 mod grammar;
 
@@ -12,7 +12,7 @@ fn main() {
         std::process::exit(1);
     };
 
-    let result = scanner_lib::run_scanner(&input);
+    let result = scanner::run_scanner(&input);
     println!("{}", result.join("\n"));
 
     let output_file = std::env::args()

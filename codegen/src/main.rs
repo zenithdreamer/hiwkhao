@@ -1,5 +1,5 @@
-use parser_lib::Parser;
-use scanner_lib;
+use parser::Parser;
+use scanner;
 use codegen;
 
 const DEFAULT_OUTPUT_FILE: &str = "hiwkhao.asm";
@@ -13,7 +13,7 @@ fn main() {
     };
 
     // Tokenize the input
-    let tokens = scanner_lib::tokenize(&input);
+    let tokens = scanner::tokenize(&input);
     let mut parser = Parser::new(vec![]);
 
     // Parse each line

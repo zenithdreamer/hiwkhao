@@ -1,5 +1,5 @@
 use logos::Lexer;
-use scanner_lib::grammar::Token;
+use scanner::grammar::Token;
 use std::collections::HashMap;
 
 pub mod symbol_table;

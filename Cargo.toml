@@ -14,5 +14,5 @@ members = [
 
 [dependencies]
 scanner = { path = "scanner" }
-parser_lib = { path = "parser" }
-codegen_lib = { path = "codegen" }
+parser = { path = "parser" }
+codegen = { path = "codegen" }

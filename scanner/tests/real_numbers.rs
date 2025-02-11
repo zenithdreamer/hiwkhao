@@ -1,10 +1,10 @@
-use scanner_lib;
+use scanner;
 
 #[test]
 fn zero_real_number() {
     let input = "0.0";
     let expected_output = vec!["0.0/REAL"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -12,7 +12,7 @@ fn zero_real_number() {
 fn positive_real_numbers() {
     let input = "1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0";
     let expected_output = vec!["1.0/REAL 2.0/REAL 3.0/REAL 4.0/REAL 5.0/REAL 6.0/REAL 7.0/REAL 8.0/REAL 9.0/REAL 10.0/REAL"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -20,7 +20,7 @@ fn positive_real_numbers() {
 fn positive_real_numbers_with_whitespace() {
     let input = "1.0  2.0  3.0  4.0  5.0  6.0  7.0  8.0  9.0  10.0";
     let expected_output = vec!["1.0/REAL 2.0/REAL 3.0/REAL 4.0/REAL 5.0/REAL 6.0/REAL 7.0/REAL 8.0/REAL 9.0/REAL 10.0/REAL"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -39,7 +39,7 @@ fn positive_real_numbers_with_newline() {
         "9.0/REAL",
         "10.0/REAL",
     ];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -47,7 +47,7 @@ fn positive_real_numbers_with_newline() {
 fn negative_real_numbers() {
     let input = "-1.0 -2.0 -3.0 -4.0 -5.0 -6.0 -7.0 -8.0 -9.0 -10.0";
     let expected_output = vec!["-1.0/REAL -2.0/REAL -3.0/REAL -4.0/REAL -5.0/REAL -6.0/REAL -7.0/REAL -8.0/REAL -9.0/REAL -10.0/REAL"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -55,7 +55,7 @@ fn negative_real_numbers() {
 fn negative_real_numbers_with_whitespace() {
     let input = "-1.0  -2.0  -3.0  -4.0  -5.0  -6.0  -7.0  -8.0  -9.0  -10.0";
     let expected_output = vec!["-1.0/REAL -2.0/REAL -3.0/REAL -4.0/REAL -5.0/REAL -6.0/REAL -7.0/REAL -8.0/REAL -9.0/REAL -10.0/REAL"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -74,6 +74,6 @@ fn negative_real_numbers_with_newline() {
         "-9.0/REAL",
         "-10.0/REAL",
     ];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }

@@ -1,12 +1,12 @@
-use parser_lib::symbol_table::SymbolTable;
-use parser_lib::Parser;
+use parser::symbol_table::SymbolTable;
+use parser::Parser;
 
 const SCANNER_DEFAULT_OUTPUT_FILE: &str = "hiwkhao.tok";
 const SYMBOL_TABLE_DEFAULT_OUTPUT_FILE: &str = "hiwkhao.csv";
 const PARSER_DEFAULT_OUTPUT_FILE: &str = "hiwkhao.bracket";
 
 fn scanner(input: &String) {
-    let result = scanner_lib::run_scanner(&input);
+    let result = scanner::run_scanner(&input);
     //println!("{}", result.join("\n"));
 
     let output_file = std::env::args()
@@ -26,7 +26,7 @@ fn main() {
 
     scanner(&input);
 
-    let tokens = scanner_lib::tokenize(&input);
+    let tokens = scanner::tokenize(&input);
     let mut parser = Parser::new(vec![]);
 
     let parsed_data = parser.parse_tokens(tokens.clone());

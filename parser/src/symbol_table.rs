@@ -1,5 +1,5 @@
 use csv::Writer;
-use scanner_lib::grammar::Token;
+use scanner::grammar::Token;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;

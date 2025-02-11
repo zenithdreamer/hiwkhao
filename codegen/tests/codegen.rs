@@ -1,6 +1,6 @@
-use parser_lib::Expr;
-use parser_lib;
-use scanner_lib;
+use parser::Expr;
+use parser;
+use scanner;
 use codegen;
 
 #[test]
@@ -323,8 +323,8 @@ x!=5
 x = list[2]
 x[1]";
 
-    let tokens = scanner_lib::tokenize(input);
-    let mut parser = parser_lib::Parser::new(vec![]);
+    let tokens = scanner::tokenize(input);
+    let mut parser = parser::Parser::new(vec![]);
     let parsed_results = parser.parse_tokens(tokens);
 
     let mut result = Vec::new();

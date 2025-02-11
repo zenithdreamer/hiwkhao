@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use parser_lib::Expr;
+use parser::Expr;
 
 struct RegisterAllocator {
     next_reg: i64,

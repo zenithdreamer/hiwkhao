@@ -1,10 +1,10 @@
-use scanner_lib;
+use scanner;
 
 #[test]
 fn zero() {
     let input = "0";
     let expected_output = vec!["0/INT"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -12,7 +12,7 @@ fn zero() {
 fn positive_integers() {
     let input = "1 2 3 4 5 6 7 8 9 10";
     let expected_output = vec!["1/INT 2/INT 3/INT 4/INT 5/INT 6/INT 7/INT 8/INT 9/INT 10/INT"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -21,7 +21,7 @@ fn negative_integers() {
     let input = "-1 -2 -3 -4 -5 -6 -7 -8 -9 -10";
     let expected_output =
         vec!["-1/INT -2/INT -3/INT -4/INT -5/INT -6/INT -7/INT -8/INT -9/INT -10/INT"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -29,7 +29,7 @@ fn negative_integers() {
 fn positive_integers_with_whitespace() {
     let input = "1  2  3  4  5  6  7  8  9  10";
     let expected_output = vec!["1/INT 2/INT 3/INT 4/INT 5/INT 6/INT 7/INT 8/INT 9/INT 10/INT"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -38,7 +38,7 @@ fn negative_integers_with_whitespace() {
     let input = "-1  -2  -3  -4  -5  -6  -7  -8  -9  -10";
     let expected_output =
         vec!["-1/INT -2/INT -3/INT -4/INT -5/INT -6/INT -7/INT -8/INT -9/INT -10/INT"];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -48,7 +48,7 @@ fn positive_integers_with_newline() {
     let expected_output = vec![
         "1/INT", "2/INT", "3/INT", "4/INT", "5/INT", "6/INT", "7/INT", "8/INT", "9/INT", "10/INT",
     ];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
 
@@ -59,6 +59,6 @@ fn negative_integers_with_newline() {
         "-1/INT", "-2/INT", "-3/INT", "-4/INT", "-5/INT", "-6/INT", "-7/INT", "-8/INT", "-9/INT",
         "-10/INT",
     ];
-    let output = scanner_lib::run_scanner(input);
+    let output = scanner::run_scanner(input);
     assert_eq!(output, expected_output);
 }
